@@ -1,0 +1,16 @@
+# Local secrets
+.env
+
+# Python cache / local tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local virtual envs
+.venv/
+venv/
+
+# Local outputs
+*.log

@@ -1,0 +1,67 @@
+# ─── MantaRay AI — Docker Compose ────────────────────────────────────────────
+# Škoda Customer Care AI Calling Agent — Full Stack
+# Usage:
+#   docker compose up --build          (first time / rebuild)
+#   docker compose up -d               (detached / background)
+#   docker compose down                (stop everything)
+#   docker compose logs -f             (view logs)
+
+services:
+
+  # ── Python FastAPI Backend ────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mantaray-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY:-}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER:-}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - mantaray-net
+    labels:
+      - "com.mantaray.service=backend"
+      - "com.mantaray.version=2.0.0"
+
+  # ── React Frontend (Production — Nginx) ──────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: mantaray-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - mantaray-net
+    labels:
+      - "com.mantaray.service=frontend"
+      - "com.mantaray.version=2.0.0"
+
+# ─── Networks ─────────────────────────────────────────────────────────────────
+networks:
+  mantaray-net:
+    name: mantaray-network
+    driver: bridge
+

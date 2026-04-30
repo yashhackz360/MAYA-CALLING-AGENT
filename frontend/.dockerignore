@@ -1,0 +1,8 @@
+# Build and dependency artifacts
+node_modules/
+dist/
+.vite/
+
+# Local env / logs
+.env
+*.log
