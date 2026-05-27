@@ -123,15 +123,42 @@ The ElevenLabs Conversational Agent must be configured in the ElevenLabs dashboa
 
 1. Go to elevenlabs.io → Conversational AI → Create Agent
 2. **Voice:** Set to Tara (`rfh7WrTVqLIjVSioJwdI`) or any preferred voice
-3. **System Prompt:** Add Maya's Škoda persona instructions
-   - Identity: "You are Maya, a customer care specialist at Škoda Auto India"
-   - Tone: Professional, warm, formal Indian English
-   - Goal: Qualify vehicle enquiries — understand model interest, budget, timeline
-   - Language switching: Match customer's preferred language (Hindi/English/Hinglish)
+3. **System Prompt:** Add Maya's Škoda persona with all `{{variable}}` placeholders:
+   - Core customer context: `{{customer_name}}`, `{{vehicle_interest}}`, `{{budget}}`, `{{transmission}}`, `{{location}}`, `{{enquiry_type}}`, `{{purpose}}`, `{{lead_tag}}`, `{{notes}}`
+   - **Dealership Intelligence (v3.1):** `{{dealer_info}}`, `{{inventory_status}}`, `{{current_offers}}`, `{{appointment_prompt}}`, `{{city_served}}`
+   - See `VOICE_AGENT_DEEP_DIVE.md` for the complete system prompt text
 4. **First Message:** Leave blank — overridden per-call from `twilio_handler.py`
-5. Copy the **Agent ID** → set as `ELEVENLABS_AGENT_ID` in `.env`
+5. **Dynamic Variables:** Ensure the agent is set to accept dynamic variables (enabled by default in EL)
+6. Copy the **Agent ID** → set as `ELEVENLABS_AGENT_ID` in `.env`
 
-**Important:** The ElevenLabs agent's system prompt controls Maya's full conversation behaviour. The first message and voice are overridden per-call by the backend.
+**Important:** All 14 `{{variables}}` are injected per-call by `_build_dynamic_variables()` in `twilio_handler.py`. The first message and voice are also overridden per-call. The 5 Dealership Intelligence variables are built from `backend/data/dealerships.py` based on the lead's city and vehicle model — no external API call required.
+
+---
+
+## Dealership Intelligence — No Setup Required
+
+The Dealership Intelligence Layer (`backend/data/dealerships.py`) is a self-contained static dataset. It requires **no external service, no database, and no API key**.
+
+To verify it is working after startup:
+
+```bash
+# Check supported cities
+curl http://localhost:8000/api/dealerships/cities
+
+# Get dealerships for a city
+curl "http://localhost:8000/api/dealerships?city=bangalore"
+
+# Get AI context for a city + model
+curl "http://localhost:8000/api/dealer-intelligence?city=Bangalore&model=Škoda Kushaq"
+
+# Get inventory for a model
+curl "http://localhost:8000/api/inventory?model=Škoda Kushaq"
+```
+
+Expected response from `/api/dealerships/cities`:
+```json
+{"cities": ["ahmedabad", "bangalore", "chennai", "delhi", "hyderabad", "jaipur", "kochi", "kolkata", "mumbai", "pune"]}
+```
 
 ---
 
@@ -325,6 +352,9 @@ These platforms provide automatic HTTPS. Deploy backend and frontend as separate
 | Recording SID missing | Recording not yet processed | Wait 30–90s after call ends — Twilio processes asynchronously |
 | `audioop ModuleNotFoundError` | Python 3.13 removed stdlib `audioop` | Install `audioop-lts` (already in requirements.txt) |
 | Frontend blank page in Docker | Nginx config issue | Check `docker compose logs frontend` |
+| `/api/dealer-intelligence` returns 422 | Missing `city` query param | `city` is required — `model` is optional |
+| Dealer info shows generic fallback | City not in supported list | Use `/api/dealerships/cities` to check supported cities; add alias to `_CITY_ALIASES` |
+| Inventory shows generic fallback | Model name not matched | Use `/api/inventory` to see exact model names; check `_MODEL_ALIASES` in dealerships.py |
 
 ---
 

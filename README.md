@@ -1,6 +1,6 @@
-# MantaRay AI — Škoda Customer Care Agent
+# MAYA Calling Agent — Škoda Auto India
 
-AI calling agent that conducts professional customer care calls for Škoda Auto India in formal Indian English. **Maya** — the AI voice — dials customers via Twilio, speaks through ElevenLabs Tara, and drives a natural discovery conversation to qualify vehicle enquiries over a real PSTN phone call.
+AI-powered voice sales agent that conducts professional customer care calls for Škoda Auto India. **Maya** — the AI voice — dials customers via Twilio, speaks through ElevenLabs (Tara voice), drives a natural discovery conversation to qualify vehicle enquiries over a real PSTN phone call, and now speaks with **city-specific dealership and inventory awareness** via the Dealership Intelligence Layer.
 
 **Stack: Twilio (outbound PSTN) + ElevenLabs Conversational Agent (voice AI) + xAI Grok (post-call analysis) + FastAPI (backend) + React 18 (dashboard)**
 
@@ -10,8 +10,8 @@ AI calling agent that conducts professional customer care calls for Škoda Auto 
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/mantaray-ai.git
-cd mantaray-ai
+git clone https://github.com/yashhackz360/MAYA-CALLING-AGENT.git
+cd MAYA-CALLING-AGENT
 
 # 2. Copy and fill environment variables
 cp .env.example .env
@@ -69,6 +69,7 @@ POST /api/leads  ──►  FastAPI (main.py)
                 ▼
         FastAPI /ws/twilio-stream/{call_sid}  (twilio_handler.py)
                 │  bidirectional µ-law ↔ PCM audio relay
+                │  _build_dynamic_variables() ← injects Dealership Intelligence
                 ▼
         ElevenLabs Conversational Agent WebSocket
         ├─ STT:   ElevenLabs built-in
@@ -97,6 +98,7 @@ POST /api/leads  ──►  FastAPI (main.py)
 | Voice (TTS + STT) | ElevenLabs Tara voice — built into the EL agent |
 | Post-Call Analysis | xAI Grok-3 — transcript classification and lead scoring |
 | Audio Transcoding | µ-law 8kHz ↔ PCM 16kHz via `audioop` / `audioop-lts` |
+| Dealership Intel | `backend/data/dealerships.py` — 10 cities, 5 models, inventory & offers |
 | Frontend | React 18 · Vite · Vanilla CSS |
 | Routing | React Router v6 (full-page navigation) |
 | Realtime | WebSocket `/ws/crm` — CRM lead notifications |
@@ -130,15 +132,32 @@ POST /api/leads  ──►  FastAPI (main.py)
 4. Customer answers → Twilio fires POST /twilio/voice webhook
 5. FastAPI returns TwiML: <Connect><Stream url="wss://.../ws/twilio-stream/{call_sid}"/>
 6. Twilio opens audio WebSocket → FastAPI relays to ElevenLabs Agent WebSocket
-7. ElevenLabs override: Tara voice + "Hello {name}, this is Maya calling from Škoda..."
-8. Bidirectional audio relay:
+7. _build_dynamic_variables() injects 14 context vars including 5 Dealership Intelligence vars
+8. ElevenLabs override: Tara voice + "Hello {name}, this is Maya calling from Škoda..."
+9. Bidirectional audio relay:
      Twilio µ-law 8kHz → upsample → PCM 16kHz → ElevenLabs (user_audio_chunk)
      ElevenLabs PCM 16kHz → downsample → µ-law 8kHz → Twilio media event
-9. Maya detects goodbye phrase → waits 6 audio chunks → hangs up via Twilio REST
-10. Call log saved to in-memory store
-11. Background tasks: poll Twilio for recording SID + xAI Grok transcript analysis
-12. Lead automatically updated with AI-derived tag, engagability, next_action
+10. Maya detects goodbye phrase → waits 6 audio chunks → hangs up via Twilio REST
+11. Call log saved to in-memory store
+12. Background tasks: poll Twilio for recording SID + xAI Grok transcript analysis
+13. Lead automatically updated with AI-derived tag, engagability, next_action
 ```
+
+---
+
+## Dealership Intelligence Layer
+
+Maya is now contextually aware of local showrooms and live inventory. When a call is initiated, `_build_dynamic_variables()` fetches from `backend/data/dealerships.py` and injects 5 extra dynamic variables:
+
+| Variable | Example Content |
+|---|---|
+| `{{dealer_info}}` | "We have 3 Škoda showrooms in Bangalore. Top-rated: Škoda Whitefield — 4.8★. Call: 080-4567-8901." |
+| `{{inventory_status}}` | "Škoda Kushaq Style 1.5 TSI AT: 2 units left — book quickly. Price: ₹17.49L. Colours: White, Red, Silver." |
+| `{{current_offers}}` | "Exchange bonus ₹50,000 | Loyalty benefit ₹25,000 | Corporate discount ₹20,000" |
+| `{{appointment_prompt}}` | "I can book you a test drive at Škoda Whitefield in Whitefield. Typical wait: 7 days." |
+| `{{city_served}}` | "Bangalore" |
+
+These variables map directly to `{{placeholders}}` in the ElevenLabs system prompt, making Maya sound locally informed on every call.
 
 ---
 
@@ -162,7 +181,7 @@ The `/enquiry` route is **public** — no login required.
 |---|---|---|---|
 | `/` | `Dashboard.jsx` | ✅ | KPI cards, pipeline, recent leads, LeadToast notifications |
 | `/leads` | `Leads.jsx` | ✅ | Lead list with search, tag filters, call triggers |
-| `/leads/:id` | `LeadDetail.jsx` | ✅ | Full lead profile — contact info, preferences, call history |
+| `/leads/:id` | `LeadDetail.jsx` | ✅ | Full lead profile + Dealership Intelligence sections |
 | `/leads/:id/edit` | `LeadEdit.jsx` | ✅ | Edit CRM fields, vehicle prefs, notes |
 | `/lead-generation` | `LeadGeneration.jsx` | ✅ | Real-time WebSocket enquiry feed |
 | `/campaigns` | `Campaigns.jsx` | ✅ | Campaign performance tracking |
@@ -170,7 +189,7 @@ The `/enquiry` route is **public** — no login required.
 | `/call-logs` | `CallLogs.jsx` | ✅ | Twilio call history (filterable by lead via `?lead=<id>`) |
 | `/call-logs/:call_id/edit` | `CallLogEdit.jsx` | ✅ | Edit call status, outcome notes, escalation flag |
 | `/billing` | `Billing.jsx` | ✅ | Invoices, cost estimator, Razorpay payment |
-| `/enquiry` | `EnquiryPage.jsx` | ❌ Public | Customer-facing enquiry form |
+| `/enquiry` | `EnquiryPage.jsx` | ❌ Public | Customer-facing enquiry form with live dealer preview |
 
 ---
 
@@ -190,6 +209,10 @@ The `/enquiry` route is **public** — no login required.
 | `/api/recordings/{recording_sid}` | GET | Proxy Twilio recording MP3 |
 | `/api/billing/create-order` | POST | Create Razorpay order |
 | `/api/billing/verify` | POST | Verify Razorpay signature |
+| `/api/dealerships` | GET | All dealerships, optionally filtered by `?city=` |
+| `/api/dealerships/cities` | GET | List of supported cities |
+| `/api/inventory` | GET | Inventory for all or a specific `?model=` |
+| `/api/dealer-intelligence` | GET | AI-ready context strings for `?city=&model=` |
 | `/twilio/voice` | POST | Twilio webhook — returns TwiML stream config |
 | `/ws/twilio-stream/{call_sid}` | WebSocket | Twilio ↔ ElevenLabs audio relay |
 | `/ws/crm` | WebSocket | Dashboard lead notification broadcast |
@@ -199,8 +222,8 @@ The `/enquiry` route is **public** — no login required.
 
 ## Documentation
 
-- [`TECHNICAL_WALKTHROUGH.md`](./TECHNICAL_WALKTHROUGH.md) — Full architecture, audio pipeline, relay flow, all code paths
-- [`VOICE_AGENT_DEEP_DIVE.md`](./VOICE_AGENT_DEEP_DIVE.md) — Maya voice agent internals, goodbye detection, post-call analysis
+- [`TECHNICAL_WALKTHROUGH.md`](./TECHNICAL_WALKTHROUGH.md) — Full architecture, audio pipeline, relay flow, Dealership Intelligence integration
+- [`VOICE_AGENT_DEEP_DIVE.md`](./VOICE_AGENT_DEEP_DIVE.md) — Maya voice agent internals, dynamic variables, goodbye detection, post-call analysis
 - [`backend/README.md`](./backend/README.md) — FastAPI backend, Twilio integration, env setup, API reference
 - [`frontend/README.md`](./frontend/README.md) — React frontend, pages, design system, components
 - [`DEPLOYMENT.md`](./DEPLOYMENT.md) — Docker, ngrok, local dev, and production deployment
@@ -210,21 +233,25 @@ The `/enquiry` route is **public** — no login required.
 ## Project Structure
 
 ```
-mantaray-ai/
+MAYA-CALLING-AGENT/
 ├── backend/
-│   ├── main.py              # FastAPI app — all REST + CRM WebSocket
-│   ├── twilio_handler.py    # Twilio webhook + audio relay + goodbye detection
+│   ├── main.py              # FastAPI app — all REST + CRM WebSocket + Dealership Intelligence API
+│   ├── twilio_handler.py    # Twilio webhook + audio relay + goodbye detection + DI injection
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   ├── .env.example
 │   └── data/
-│       └── sample_leads.py  # In-memory lead store (CRUD, call logs, analytics)
+│       ├── sample_leads.py  # In-memory lead store (CRUD, call logs, analytics)
+│       └── dealerships.py   # [NEW] Dealership Intelligence Layer — city data, inventory, context builders
 │
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx          # Router, sidebar, topbar, auth gate
-│   │   ├── index.css        # Global design system
-│   │   └── pages/           # All page components
+│   │   ├── index.css        # Global design system + di-* Dealership Intelligence CSS classes
+│   │   └── pages/
+│   │       ├── EnquiryPage.jsx   # Customer form + live dealer/inventory preview
+│   │       ├── LeadDetail.jsx    # Lead profile + Dealership Intelligence sections
+│   │       └── ...              # All other page components
 │   ├── Dockerfile
 │   └── package.json
 │

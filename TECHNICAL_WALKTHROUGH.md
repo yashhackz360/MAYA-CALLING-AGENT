@@ -1,6 +1,6 @@
-# MantaRay AI — Technical Walkthrough (v7)
+# MAYA — Technical Walkthrough (v8 — Dealership Intelligence Layer)
 
-Complete architecture guide covering every code path from lead creation through voice call to post-call analysis.
+Complete architecture guide covering every code path from lead creation through voice call to post-call analysis. Updated to include the new Dealership Intelligence Layer (v3.1).
 
 ---
 
@@ -22,6 +22,7 @@ Browser (React 18 + Vite)
   │
   ├── LeadDetail.jsx   (/leads/:id)
   │     ├── Full-page lead profile (contact, vehicle prefs, CRM fields, call history)
+  │     ├── ★ NEW: Dealership Intelligence sections (Nearest Dealer · Inventory · CTA)
   │     ├── "Call Now with Maya" → POST /api/leads/:id/call
   │     ├── "Update" → navigates /leads/:id/edit
   │     └── "Call Logs" → navigates /call-logs?lead=:id
@@ -44,7 +45,8 @@ Browser (React 18 + Vite)
   │     └── Invoices table, cost estimator, Razorpay payment integration
   │
   └── EnquiryPage.jsx  (public, no auth)
-        └── POST /api/leads
+        ├── POST /api/leads
+        └── ★ NEW: Live dealer/inventory preview (GET /api/dealer-intelligence)
 
 FastAPI Backend (main.py)
   ├── /api/leads           → CRUD, duplicate merge, CRM broadcast, Twilio auto-dial
@@ -54,17 +56,32 @@ FastAPI Backend (main.py)
   ├── /api/campaigns       → campaign data
   ├── /api/recordings/{sid}→ proxy Twilio recording MP3 (Basic Auth handled server-side)
   ├── /api/billing/*       → Razorpay order + HMAC signature verify
+  ├── /api/dealerships     → ★ NEW: city-filtered dealership list
+  ├── /api/dealerships/cities → ★ NEW: supported cities
+  ├── /api/inventory       → ★ NEW: model inventory with variant detail
+  ├── /api/dealer-intelligence → ★ NEW: AI-ready context strings for city+model
   ├── /ws/crm              → CRM broadcast (new_lead events)
   │
   └── twilio_handler.py (APIRouter)
         ├── POST /twilio/voice           → TwiML webhook
         └── WS /ws/twilio-stream/{sid}  → Twilio ↔ ElevenLabs audio relay
+              └── _build_dynamic_variables() ★ now injects 14 vars (9 + 5 DI)
+
+data/dealerships.py  ★ NEW
+  ├── DEALERSHIPS dict  — 10 cities × 2–4 showrooms each
+  ├── INVENTORY dict    — 5 Škoda models × variants (stock, price, colours, delivery)
+  ├── build_dealer_intelligence(city, model, variant, transmission) → 5-key dict
+  ├── get_city_context()        → dealer_info string
+  ├── get_inventory_context()   → inventory_status string
+  ├── get_offers_context()      → current_offers string
+  ├── get_dealer_appointment_context() → appointment_prompt string
+  └── list_all_cities(), list_all_models(), get_full_dealer_list()
 
 External Services
   ├── Twilio   — outbound PSTN calls, recording storage
   ├── ElevenLabs Conversational Agent
   │     ├── STT: built-in
-  │     ├── LLM: configured in EL dashboard
+  │     ├── LLM: configured in EL dashboard (14 dynamic {{variables}} from backend)
   │     └── TTS: Tara voice (rfh7WrTVqLIjVSioJwdI)
   └── xAI Grok-3 — post-call transcript analysis (background, optional)
 ```
@@ -75,21 +92,151 @@ External Services
 
 | File | Responsibility |
 |---|---|
-| `backend/main.py` | FastAPI — all REST routes, CRM WebSocket, Razorpay billing, health |
-| `backend/twilio_handler.py` | Twilio webhook, bidirectional audio relay, goodbye detection, call logging, post-call analysis |
+| `backend/main.py` | FastAPI — all REST routes, CRM WebSocket, Razorpay billing, Dealership Intelligence API, health |
+| `backend/twilio_handler.py` | Twilio webhook, bidirectional audio relay, goodbye detection, call logging, DI injection, post-call analysis |
 | `backend/data/sample_leads.py` | In-memory lead store — CRUD, call log store, analytics, campaigns, duplicate detection |
+| `backend/data/dealerships.py` | **[NEW]** Dealership Intelligence Layer — city+dealership data, inventory, AI context builders |
 | `frontend/src/App.jsx` | Sidebar navigation, BrowserRouter, auth gate, TopBar |
 | `frontend/src/pages/Dashboard.jsx` | KPI cards, pipeline, `LeadToast` notification component, recent leads |
 | `frontend/src/pages/Leads.jsx` | Lead list with search, tag filters, inline call trigger |
-| `frontend/src/pages/LeadDetail.jsx` | Full-page lead profile — read-only view, call trigger, navigation |
+| `frontend/src/pages/LeadDetail.jsx` | Full-page lead profile + **[NEW]** 3 Dealership Intelligence sections |
 | `frontend/src/pages/LeadEdit.jsx` | Full-page lead edit form — PATCH API, redirects to detail |
 | `frontend/src/pages/CallLogs.jsx` | Call history table — URL `?lead=` filter, edit row navigation |
 | `frontend/src/pages/CallLogEdit.jsx` | Call log edit form — status, outcome, escalation (in-memory) |
 | `frontend/src/pages/LeadGeneration.jsx` | Live enquiry feed via `/ws/crm` |
-| `frontend/src/pages/EnquiryPage.jsx` | Public customer enquiry form |
+| `frontend/src/pages/EnquiryPage.jsx` | Public customer enquiry form + **[NEW]** live dealer/inventory preview |
 | `frontend/src/pages/Billing.jsx` | Invoices, Razorpay payment flow, cost estimator |
 | `frontend/src/pages/LoginPage.jsx` | Auth gate — demo credentials, sessionStorage |
-| `frontend/src/index.css` | Global design system — CSS custom properties, component classes, animations |
+| `frontend/src/index.css` | Global design system + **[NEW]** `di-*` Dealership Intelligence CSS classes |
+
+---
+
+## Dealership Intelligence Layer (New in v3.1)
+
+### Overview
+
+The Dealership Intelligence Layer makes Maya sound locally aware during every call. It is a pure Python data layer with no external dependencies — all data is pre-loaded in `backend/data/dealerships.py`.
+
+### Data Coverage
+
+| Dataset | Coverage |
+|---|---|
+| Cities | 10 major Indian cities: Bangalore, Mumbai, Delhi, Hyderabad, Pune, Chennai, Kolkata, Ahmedabad, Jaipur, Kochi |
+| Dealerships | 21 showrooms total (2–4 per city) with area, address, phone, manager, rating, hours, services |
+| Models | 5 current Škoda India models: Kushaq, Slavia, Kodiaq, Superb, Enyaq |
+| Variants | 18 variant entries with ex-showroom price, stock status, stock count, delivery weeks, colours, highlights |
+| City Aliases | 40+ city alias normalizations (e.g. "Bengaluru" → `"bangalore"`, "Gurugram" → `"delhi"`) |
+
+### Function Reference
+
+```python
+# Master context builder — used by twilio_handler._build_dynamic_variables()
+build_dealer_intelligence(city, model, variant, transmission) → {
+    "dealer_info":        str,   # e.g. "We have 3 Škoda showrooms in Bangalore..."
+    "inventory_status":   str,   # e.g. "Škoda Kushaq Style 1.5 TSI AT: 2 units left..."
+    "current_offers":     str,   # e.g. "Exchange bonus ₹50,000 | Loyalty benefit ₹25,000"
+    "appointment_prompt": str,   # e.g. "I can book you a test drive at Škoda Whitefield..."
+    "city_served":        str,   # e.g. "Bangalore"
+}
+
+# Individual helpers
+get_city_context(city)                             → str
+get_inventory_context(model, variant, transmission) → str
+get_offers_context(model)                          → str
+get_dealer_appointment_context(city)               → str
+
+# Listing helpers (used by API endpoints)
+list_all_cities()        → list[str]
+list_all_models()        → list[str]
+get_full_dealer_list()   → list[dict]
+get_dealers_for_city(city) → list[dict]
+get_dealer_for_city(city, preferred_area) → dict | None
+get_inventory_for_model(model) → dict | None
+get_variant_availability(model, variant_hint) → list[dict]
+```
+
+### Injection into ElevenLabs (`twilio_handler.py`)
+
+`_build_dynamic_variables(lead)` now returns **14 variables** (previously 9):
+
+```python
+# Original 9 variables (unchanged)
+customer_name, vehicle_interest, budget, transmission,
+location, enquiry_type, purpose, lead_tag, notes
+
+# New 5 Dealership Intelligence variables
+dealer_info, inventory_status, current_offers,
+appointment_prompt, city_served
+```
+
+These are injected into ElevenLabs via `conversation_initiation_client_data` → `dynamic_variables` list, mapping to `{{placeholder}}` tokens in the system prompt.
+
+### API Endpoints
+
+```
+GET /api/dealerships
+    ?city=bangalore  → filtered list of dealerships for that city
+    (no param)       → all dealerships + supported cities list
+
+GET /api/dealerships/cities
+    → ["ahmedabad", "bangalore", "chennai", ...]
+
+GET /api/inventory
+    ?model=Škoda Kushaq   → full model data + variant availability
+    ?model=...&variant=Style  → filtered variant only
+    (no param)            → summary of all models
+
+GET /api/dealer-intelligence?city=Bangalore&model=Škoda Kushaq
+    → {
+        "city": "Bangalore",
+        "model": "Škoda Kushaq",
+        "intelligence": {
+            "dealer_info": "...",
+            "inventory_status": "...",
+            "current_offers": "...",
+            "appointment_prompt": "...",
+            "city_served": "Bangalore"
+        }
+      }
+```
+
+### Frontend Integration
+
+**EnquiryPage.jsx** — Live preview as the customer fills the form:
+```
+City selected + Model selected
+  → useEffect fires
+  → GET /api/dealer-intelligence?city=<city>&model=<model>
+  → di-inline-preview shows dealer_info, inventory_status, current_offers
+  → Updates in real-time as city/model selection changes
+```
+
+**LeadDetail.jsx** — 3 new sections per lead:
+```
+lead.preferences.location set
+  → useEffect fires after lead loaded
+  → GET /api/dealer-intelligence?city=<city>&model=<model>
+  → Section 1: "Nearest Dealership" — di-dealer-card + di-ai-context
+  → Section 2: "Inventory & Offers" — di-ai-context + di-offers-banner
+  → Section 3: "Recommended Action" — di-appointment-cta button
+```
+
+### CSS Design System (`di-*` classes in `index.css`)
+
+| Class | Element |
+|---|---|
+| `.di-dealer-card` | Dealer info card with left blue accent bar, hover lift |
+| `.di-dealer-header` / `.di-dealer-icon` | Card header with icon and rating |
+| `.di-stock-badge` | Stock status pill (4 variants: available/limited/request/waitlisted) |
+| `.di-inventory-panel` | Variant list panel with header and tagline |
+| `.di-variant-row` | Per-variant row with name, price, delivery, colours |
+| `.di-colour-chip` | Small colour label chips |
+| `.di-offers-banner` | Gold gradient offers callout with emoji icon |
+| `.di-section` / `.di-section-title` | Section divider with auto-expanding rule line |
+| `.di-ai-context` | Blue gradient AI context info box with 🤖 watermark |
+| `.di-appointment-cta` | Blue gradient CTA button with arrow, hover lift |
+| `.di-city-selector` / `.di-city-chip` | City grid selector with selected state |
+| `.di-inline-preview` | Inline text preview, turns blue when data loaded |
 
 ---
 
@@ -127,13 +274,6 @@ ElevenLabs audio event (type="audio")
   → Twilio MediaStream → customer hears Maya's voice on their phone
 ```
 
-### Buffering Strategy
-
-The `twilio_to_elevenlabs` coroutine buffers **3 packets (≈60ms)** before sending to ElevenLabs. This:
-- Reduces WebSocket message overhead
-- Prevents ElevenLabs STT from receiving too-small audio frames
-- Keeps latency within acceptable bounds (< 100ms delay added)
-
 ---
 
 ## Call Lifecycle — Step by Step
@@ -150,43 +290,36 @@ The `twilio_to_elevenlabs` coroutine buffers **3 packets (≈60ms)** before send
 2. /ws/twilio-stream/{call_sid}  opens
    ├── await websocket.accept()
    └── Wait for Twilio "start" event (8s timeout)
-         "connected" event ignored
-         "start"     event → captures stream_sid (critical — all audio needs this)
 
 3. Connect to ElevenLabs
    └── wss://api.elevenlabs.io/v1/convai/conversation?agent_id={ELEVENLABS_AGENT_ID}
-         headers: { "xi-api-key": ELEVENLABS_API_KEY }
-         ping_interval=None, open_timeout=15s
 
 4. Receive conversation_initiation_metadata (10s timeout)
-   └── reads agent_output_audio_format (pcm_16000 / ulaw_8000 / pcm_8000)
-       reads conversation_id
+   └── reads agent_output_audio_format + conversation_id
 
-5. Send per-call config override
+5. Send per-call config override including dynamic_variables
    └── type: "conversation_initiation_client_data"
        conversation_config_override:
          agent.first_message: "Hello {name}, this is Maya calling from Skoda..."
          tts.voice_id: "rfh7WrTVqLIjVSioJwdI"  (Tara)
+       dynamic_variables: [
+         {name: "customer_name", value: "Priya"},
+         {name: "vehicle_interest", value: "Škoda Kushaq Style"},
+         {name: "dealer_info", value: "We have 3 Škoda showrooms in Bangalore..."},
+         {name: "inventory_status", value: "Škoda Kushaq Style 1.5 TSI AT: 2 units left..."},
+         {name: "current_offers", value: "Exchange bonus ₹50,000..."},
+         {name: "appointment_prompt", value: "I can book you a test drive at..."},
+         {name: "city_served", value: "Bangalore"},
+         ... (9 more vars)
+       ]
 
 6. asyncio.gather() runs both coroutines concurrently:
    ├── twilio_to_elevenlabs()  — inbound customer audio
    └── elevenlabs_to_twilio()  — outbound Maya audio + event handling
 
-7. Goodbye detection (in elevenlabs_to_twilio)
-   └── agent_response event received
-       → _is_goodbye(text, preferred_language) → True
-       → goodbye_detected = True
-       → next 6 audio events: goodbye_audio_chunks increments
-       → at chunk 6: asyncio.ensure_future(_hangup_twilio_call(call_sid))
+7. Goodbye detection → _hangup_twilio_call(call_sid) → call ends
 
-8. Twilio hangup
-   └── client.calls(call_sid).update(status="completed")  via Twilio REST API
-
-9. finally block always runs (regardless of how call ended)
-   ├── Calculate duration from time.time() delta
-   ├── add_call_log(log_entry) → saves to _call_logs list
-   ├── add_call_to_lead(lead_id, ...) → appends to lead.call_history
-   └── asyncio.ensure_future(_post_call_analysis(...)) → background task
+8. finally block → add_call_log() + add_call_to_lead() + _post_call_analysis()
 ```
 
 ---
@@ -234,24 +367,10 @@ for attempt in range(5):
 → updates call log entry with recording_sid
 ```
 
-Twilio takes 30–90 seconds to process recordings after a call ends.
-
 ### _analyze_transcript (xAI Grok-3)
 
-Requires `XAI_API_KEY` in `.env`. Sends full transcript to `https://api.x.ai/v1/chat/completions`:
+Sends full transcript to `https://api.x.ai/v1/chat/completions`. Expected response:
 
-```json
-{
-  "model": "grok-3",
-  "temperature": 0.1,
-  "messages": [{
-    "role": "user",
-    "content": "Analyze this Škoda sales call transcript. Return JSON only:\n{turns}"
-  }]
-}
-```
-
-Expected response structure:
 ```json
 {
   "engagability":    "Very High | High | Medium | Low",
@@ -278,8 +397,6 @@ Expected response structure:
 
 ## Real-Time CRM Notification System
 
-### WebSocket Flow (`/ws/crm`)
-
 ```
 EnquiryPage (browser) submits form
   → POST /api/leads  (new lead only — duplicates don't broadcast)
@@ -287,82 +404,26 @@ EnquiryPage (browser) submits form
 backend main.py:
   → broadcast_new_lead(lead)
   → iterates _crm_clients set
-  → sends JSON to each connected WebSocket:
-      {
-        "type": "new_lead",
-        "lead": { ...full lead object... },
-        "message": "New enquiry from Priya!",
-        "timestamp": "2026-05-06T..."
-      }
+  → sends JSON: { "type": "new_lead", "lead": {...}, "message": "...", "timestamp": "..." }
   → dead connections removed from set
 
 Dashboard.jsx:
-  → WebSocket onmessage → type==="new_lead" → addNotif(lead)
-  → LeadToast renders (fixed top-right, z-index: 9999, 9s auto-dismiss)
+  → WebSocket onmessage → type==="new_lead" → LeadToast renders (9s auto-dismiss)
 
 LeadGeneration.jsx:
   → WebSocket onmessage → prepends lead to live feed table
-  → Updates Today / Total / Hot stat counters
-```
-
-### Keep-Alive Protocol
-
-```
-Client → Server:  { "type": "ping" }
-Server → Client:  { "type": "pong" }
-```
-
-### LeadToast Component (Dashboard.jsx)
-
-```
-Structure:
-  1. Tri-color accent bar — indigo → sky → emerald gradient (top border)
-  2. Header — "New Enquiry Received" + dismiss × button
-  3. Lead card — initials avatar, name, phone/vehicle/location chips, tag badge
-  4. Maya AI strip — animated waveform bars + "Maya AI — Automated Call in Progress"
-  5. Action buttons — "View Lead" (→ /leads) · "Call Logs" (→ /call-logs)
-  6. Progress bar — depletes over 9s, triggers auto-dismiss at 0
-
-CSS Animations:
-  toastSlideIn  — spring slide-in from right (cubic-bezier 0.34,1.56,0.64,1)
-  bellPulse     — radial glow on phone icon (2 pulses on mount)
-  waveBar       — staggered oscillation on 5 bars (infinite, 0.9s cycle, delays 0–0.4s)
 ```
 
 ---
 
 ## ElevenLabs Agent Configuration
 
-The ElevenLabs Conversational Agent is configured in the ElevenLabs dashboard. The backend overrides per-call settings at connection time.
-
 | Setting | Value |
 |---|---|
 | Voice | Tara — `rfh7WrTVqLIjVSioJwdI` |
-| First message | Overridden per-call via `conversation_initiation_client_data` |
-| Language | English / Hindi — set per-call from `lead.preferred_language` |
-| System prompt | Škoda Maya persona — configured in EL dashboard |
-
-Per-call override payload:
-```json
-{
-  "type": "conversation_initiation_client_data",
-  "conversation_config_override": {
-    "agent": {
-      "first_message": "Hello Priya, this is Maya calling from Skoda Auto India. Am I speaking with Priya?"
-    },
-    "tts": {
-      "voice_id": "rfh7WrTVqLIjVSioJwdI"
-    }
-  }
-}
-```
-
-### Language-Aware Greeting
-
-| Language | First Message |
-|---|---|
-| English | `"Hello {name}, this is Maya calling from Skoda Auto India."` |
-| Hindi | `"Namaste {name} ji, main Maya bol rahi hoon Skoda Auto India se."` |
+| First message | Overridden per-call |
+| Dynamic variables | 14 vars injected — 9 CRM + 5 Dealership Intelligence |
+| System prompt | Škoda Maya persona — see `VOICE_AGENT_DEEP_DIVE.md` for current prompt |
 
 ### ElevenLabs Events Handled
 
@@ -377,81 +438,13 @@ Per-call override payload:
 
 ---
 
-## Frontend Pages & Routes
-
-| Route | Component | Auth | Description |
-|---|---|---|---|
-| `/` | `Dashboard.jsx` | ✅ Required | KPI cards, pipeline, LeadToast, recent leads |
-| `/leads` | `Leads.jsx` | ✅ Required | Lead list, search/filter, inline call trigger |
-| `/leads/:id` | `LeadDetail.jsx` | ✅ Required | Full lead profile — read-only view |
-| `/leads/:id/edit` | `LeadEdit.jsx` | ✅ Required | Edit lead (PATCH API) |
-| `/lead-generation` | `LeadGeneration.jsx` | ✅ Required | Live WS enquiry feed |
-| `/campaigns` | `Campaigns.jsx` | ✅ Required | Campaign performance |
-| `/analytics` | `Analytics.jsx` | ✅ Required | Deep-dive metrics with Recharts |
-| `/call-logs` | `CallLogs.jsx` | ✅ Required | Call history + `?lead=` URL filter |
-| `/call-logs/:call_id/edit` | `CallLogEdit.jsx` | ✅ Required | Edit call record (front-end state) |
-| `/billing` | `Billing.jsx` | ✅ Required | Invoices, Razorpay payment |
-| `/enquiry` | `EnquiryPage.jsx` | ❌ Public | Customer enquiry form |
-
-### Navigation Design
-
-All view/edit actions use **full-page routing** — no modal overlays.
-
-```
-Leads table row click       → /leads/:id (LeadDetail)
-LeadDetail "Update" button  → /leads/:id/edit (LeadEdit)
-LeadEdit save               → navigate(-1) to /leads/:id
-LeadDetail "Call Logs"      → /call-logs?lead=:id
-CallLogs edit icon          → /call-logs/:call_id/edit
-Back buttons                → navigate(-1) or explicit parent path
-```
-
-### API Helper (`App.jsx`)
-
-```javascript
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-
-export async function apiFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return await res.json()
-}
-```
-
----
-
-## Frontend Design System
-
-- **Theme:** Light/white enterprise — CSS custom properties via `:root`
-- **Sidebar:** Dark navy `#0c1322`
-- **Typography:** Inter (Google Fonts)
-- **Charts:** Recharts library
-- **Icons:** Lucide React
-
-### CSS Animation Keyframes
-
-| Keyframe | Used By |
-|---|---|
-| `toastSlideIn` | `LeadToast` — spring slide-in from right |
-| `bellPulse` | `LeadToast` phone icon radial glow |
-| `waveBar` | `LeadToast` Maya AI waveform bars (staggered) |
-| `fadeInUp` | Page transitions, detail page mounts |
-| `float` | Login page background floating shapes |
-
----
-
 ## In-Memory Data Store (`data/sample_leads.py`)
-
-The backend uses a Python list `_leads_db` as the primary data store. Data resets on server restart.
 
 ### Lead Object Schema
 
 ```python
 {
-  "lead_id":             "lead_001",          # UUID or sequential
+  "lead_id":             "lead_001",
   "name":                "Priya Sharma",
   "phone":               "+91 98765 43210",
   "email":               "priya@infosys.com",
@@ -461,89 +454,24 @@ The backend uses a Python list `_leads_db` as the primary data store. Data reset
   "tag":                 "Hot",               # Hot / Warm / Cold
   "created_at":          "2026-05-06T...",
   "preferences": {
-    "location":          "Bangalore",
-    "vehicle_model":     "Škoda Kushaq",
+    "location":          "Bangalore",         # used to query dealerships.py
+    "vehicle_model":     "Škoda Kushaq",      # used to query inventory
     "variant":           "Style",
     "budget":            "₹16–18 Lakhs",
     "transmission":      "Automatic",
     "enquiry_type":      "New Purchase",
     "notes":             "..."
   },
-  "call_history":        [...],               # list of call records
-  "engagement":          "Very High",
-  "intent":              "Purchase",
-  "urgency":             "High",
-  "fit":                 "Excellent",
-  "assigned_agent":      "Maya",
-  "campaign":            "Kushaq Style Summer Drive 2024",
-  "contact_consent":     true,
-  "communication_consent": false,
+  "call_history":        [...],
   "ai_analysis":         {...},               # Grok analysis (post-call)
   "enquiry_count":       1,
-  "last_enquiry_at":     "2026-05-06T..."
+  "contact_consent":     true,
 }
-```
-
-### Call Log Entry Schema
-
-```python
-{
-  "call_id":       "CA...",        # Twilio CallSid
-  "lead_id":       "lead_001",
-  "recipient":     "Priya",
-  "lead_name":     "Priya",
-  "phone":         "+91 ...",
-  "duration":      "2:14",
-  "status":        "Completed",
-  "outcome":       "Maya AI call completed",
-  "date":          "2026-05-06T...",
-  "timestamp":     "2026-05-06T...",
-  "escalated":     false,
-  "transcript":    [{"role": "agent", "text": "..."}, ...],
-  "recording_sid": "RE...",        # filled by _fetch_recording_sid
-  "ai_analysis":   {...}           # filled by _analyze_transcript
-}
-```
-
----
-
-## Billing / Razorpay Integration
-
-### Order Creation
-
-```
-POST /api/billing/create-order
-  body: { amount: <int INR>, currency: "INR", invoice_id: "INV-001" }
-  → razorpay.Client.order.create({ amount: amount*100, ... })
-  → returns Razorpay order object (id, amount, currency, status)
-```
-
-### Payment Verification (HMAC-SHA256)
-
-```
-POST /api/billing/verify
-  body: { razorpay_order_id, razorpay_payment_id, razorpay_signature, invoice_id }
-  → expected = HMAC-SHA256(RAZORPAY_KEY_SECRET, f"{order_id}|{payment_id}")
-  → hmac.compare_digest(expected, signature)  ← constant-time comparison
-  → 400 if invalid, 200 {"success": true} if valid
-```
-
----
-
-## Recording Proxy Endpoint
-
-```
-GET /api/recordings/{recording_sid}
-  → fetches https://api.twilio.com/2010-04-01/Accounts/{SID}/Recordings/{REC}.mp3
-  → Basic Auth with (TWILIO_SID, TWILIO_TOKEN) — credentials never exposed to browser
-  → returns audio/mpeg bytes inline
 ```
 
 ---
 
 ## Logging (`twilio_relay.log`)
-
-Written to `backend/twilio_relay.log` via Python `logging`. All relay activity:
 
 | Prefix | Meaning |
 |---|---|
@@ -567,27 +495,5 @@ Written to `backend/twilio_relay.log` via Python `logging`. All relay activity:
 - **No persistent call log edits** — `CallLogEdit.jsx` edits are front-end state only (no PATCH endpoint for call logs)
 - **Demo auth only** — sessionStorage, three hardcoded credentials; no RBAC or token expiry
 - **CORS permissive** — `allow_origins=["*"]` included; restrict for production
-- **No call recording in-app** — Twilio stores recordings; app saves only the recording SID
+- **Dealership data is static** — `dealerships.py` is a mock dataset; no live inventory API integration
 - **No multi-tenancy** — single shared in-memory store
-
----
-
-## Eliminated in v6 (Path B Removal)
-
-The following files/endpoints were removed. They were part of the browser call simulation path (xAI Grok streaming voice via browser microphone):
-
-| Removed | Was Used For |
-|---|---|
-| `backend/agent/conversation.py` | 5-state call state machine for browser simulation |
-| `backend/agent/llm_client.py` | xAI Grok-3-fast streaming LLM + Deepgram STT + EL TTS calls |
-| `backend/call_manager/manager.py` | In-memory browser call session registry |
-| `frontend/src/pages/CallConsole.jsx` | Browser-based call UI with MediaRecorder + Web Speech API |
-| `POST /api/calls/initiate` | Browser call session start |
-| `POST /api/calls/turn` | Browser call turn |
-| `POST /api/calls/{id}/end` | Browser call end |
-| `GET /api/calls/active` | Active browser sessions |
-| `POST /api/stt` | Deepgram / xAI server-side transcription |
-| `POST /api/voice/tts` | ElevenLabs / xAI server-side TTS |
-| `WS /ws/call/{id}` | Browser call WebSocket |
-| `POST /elevenlabs/llm` | xAI custom LLM for EL agent |
-| `POST /elevenlabs/call-complete` | EL end-of-call transcript webhook |

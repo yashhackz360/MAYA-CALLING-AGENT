@@ -8,8 +8,8 @@ FastAPI backend for the MantaRay AI calling agent. Handles Twilio outbound PSTN 
 
 ```
 backend/
-├── main.py              # FastAPI app — REST endpoints, /ws/crm, Razorpay, health
-├── twilio_handler.py    # Twilio webhook + Twilio ↔ ElevenLabs audio relay
+├── main.py              # FastAPI app — REST endpoints, /ws/crm, Razorpay, Dealership Intelligence API
+├── twilio_handler.py    # Twilio webhook + Twilio → ElevenLabs audio relay + DI injection
 ├── requirements.txt     # Python dependencies
 ├── Dockerfile           # python:3.13-slim + audioop-lts native build
 ├── .env                 # API keys (git-ignored)
@@ -23,7 +23,8 @@ backend/
 │   └── __init__.py      # Empty — Path B placeholder
 │
 └── data/
-    └── sample_leads.py  # In-memory lead store (CRUD, call logs, analytics, campaigns)
+    ├── sample_leads.py  # In-memory lead store (CRUD, call logs, analytics, campaigns)
+    └── dealerships.py   # [NEW] Dealership Intelligence Layer (city data, inventory, AI context builders)
 ```
 
 ---
@@ -147,6 +148,24 @@ Key functions:
 - `get_analytics()` — computes KPIs from live data
 - `get_campaigns()` — aggregates leads by campaign name
 
+### `data/dealerships.py` [NEW — v3.1]
+
+Self-contained static dataset for the Dealership Intelligence Layer. No external dependencies, no database.
+
+**Data:**
+- `DEALERSHIPS` dict — 10 Indian cities × 2–4 dealerships (21 total)
+- `INVENTORY` dict — 5 Škoda models × variants with stock status, pricing, colours, delivery timelines
+- `_CITY_ALIASES` — 40+ normalizations ("Bengaluru" → `"bangalore"`, "Gurgaon" → `"delhi"`, etc.)
+- `_MODEL_ALIASES` — model name fuzzy matching
+
+**Key functions:**
+- `build_dealer_intelligence(city, model, variant, transmission)` → 5-key dict used by `twilio_handler._build_dynamic_variables()`
+- `get_city_context(city)` → dealer_info string
+- `get_inventory_context(model, variant, transmission)` → inventory_status string
+- `get_offers_context(model)` → current_offers string
+- `get_dealer_appointment_context(city)` → appointment_prompt string
+- `list_all_cities()`, `list_all_models()`, `get_full_dealer_list()` → used by API endpoints
+
 ---
 
 ## API Endpoints
@@ -169,6 +188,10 @@ Key functions:
 | `GET` | `/api/recordings/{recording_sid}` | Proxy Twilio recording MP3 (handles Basic Auth) |
 | `POST` | `/api/billing/create-order` | Razorpay order creation |
 | `POST` | `/api/billing/verify` | Razorpay HMAC signature verification |
+| `GET` | `/api/dealerships` | All dealerships; `?city=` for filtered list |
+| `GET` | `/api/dealerships/cities` | Supported city list |
+| `GET` | `/api/inventory` | All model inventory; `?model=` + `?variant=` for filtered |
+| `GET` | `/api/dealer-intelligence` | AI-ready context strings — requires `?city=`, optional `?model=` |
 
 ### Twilio
 
@@ -387,3 +410,4 @@ curl http://localhost:8000/health
 - **CORS permissive** — `allow_origins=["*"]` — restrict to your domain in production
 - **Twilio requires public HTTPS** — `PUBLIC_BASE_URL` must be reachable; ngrok URL expires on free plan
 - **Recording SID available after 30–90s** — post-call analysis background task polls with retries
+- **Dealership data is static mock** — `dealerships.py` has no live inventory API connection; data must be updated manually
