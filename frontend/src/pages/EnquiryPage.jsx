@@ -40,14 +40,13 @@ const LANGUAGE_OPTIONS = [
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-/* ── Animated digit counter for stats ───────────────────────────────────── */
+/* ── Animated digit counter ──────────────────────────────────────────────── */
 function AnimatedStat({ value, suffix = '', label }) {
   const [display, setDisplay] = useState(0)
   useEffect(() => {
     let start = 0
     const end = parseInt(value)
-    const duration = 1800
-    const step = Math.ceil(end / (duration / 16))
+    const step = Math.ceil(end / (1800 / 16))
     const timer = setInterval(() => {
       start += step
       if (start >= end) { setDisplay(end); clearInterval(timer) }
@@ -80,12 +79,13 @@ export default function EnquiryPage() {
 
   useEffect(() => {
     const img = new Image()
-    img.src = '/skoda_hero.png'
+    img.src = '/skoda_lineup.jpg'
     img.onload = () => setBgLoaded(true)
-    // Fallback in case image never loads
-    const t = setTimeout(() => setBgLoaded(true), 2000)
+    const t = setTimeout(() => setBgLoaded(true), 2500)
     return () => clearTimeout(t)
   }, [])
+
+  const bgStyle = bgLoaded ? { backgroundImage: "url('/skoda_lineup.jpg')" } : {}
 
   const updateField = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
 
@@ -108,24 +108,28 @@ export default function EnquiryPage() {
         communication_consent: form.communication_consent,
         preferences: {}
       }
-      if (form.location) payload.preferences.location = form.location
+      if (form.location)      payload.preferences.location      = form.location
       if (form.vehicle_model) payload.preferences.vehicle_model = form.vehicle_model
-      if (form.budget) payload.preferences.budget = form.budget
-      if (form.enquiry_type) payload.preferences.enquiry_type = form.enquiry_type
-      if (form.notes) payload.preferences.notes = form.notes
+      if (form.budget)        payload.preferences.budget        = form.budget
+      if (form.enquiry_type)  payload.preferences.enquiry_type  = form.enquiry_type
+      if (form.notes)         payload.preferences.notes         = form.notes
 
+      let isReturning = false
       try {
         const res = await fetch(`${API_BASE}/api/leads`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         })
-        if (!res.ok) console.warn('[EnquiryPage] Backend returned', res.status, '— demo mode')
+        if (res.ok) {
+          const data = await res.json()
+          isReturning = data.returning === true
+        }
       } catch {
-        console.warn('[EnquiryPage] Backend unreachable — demo mode fallback')
+        console.warn('[EnquiryPage] Backend unreachable — demo mode')
       }
 
-      setSubmittedData({ ...form, countryCode })
+      setSubmittedData({ ...form, countryCode, returning: isReturning })
       setSubmitted(true)
     } finally {
       setSubmitting(false)
@@ -139,41 +143,41 @@ export default function EnquiryPage() {
     const phoneDisplay = `${submittedData.countryCode} ${submittedData.phone}`
 
     return (
-      <div className="eq-page" style={bgLoaded ? { backgroundImage: "url('/skoda_hero.png')" } : {}}>
+      <div className="eq-page" style={bgStyle}>
         <div className="eq-overlay" />
-        <div className="eq-particles">
-          {[...Array(12)].map((_, i) => (
-            <span key={i} className="eq-particle" style={{
-              '--d': `${Math.random() * 3 + 1}s`,
-              '--x': `${Math.random() * 100}%`,
-              '--s': `${Math.random() * 0.6 + 0.3}`,
-              animationDelay: `${Math.random() * 3}s`
-            }} />
-          ))}
-        </div>
-
-        <div className="eq-success-wrap animate-eq-in">
-          {/* Maya avatar + badge */}
+        <div className="eq-success-container animate-eq-in">
           <div className="eq-success-avatar">
             <div className="eq-avatar-ring">
-              <div className="eq-avatar-inner">🤖</div>
+              <div className="eq-avatar-inner">M</div>
             </div>
             <div className="eq-success-badge">
-              <CheckCircle size={14} /> Confirmed
+              <CheckCircle size={13} /> Confirmed
             </div>
           </div>
 
-          <h2 className="eq-success-title">You're All Set, {visitorName}!</h2>
+          {submittedData?.returning && (
+            <div className="eq-returning-banner">
+              Welcome back! We already have your profile — your details have been updated.
+            </div>
+          )}
+
+          <h2 className="eq-success-title">
+            {submittedData?.returning
+              ? `Good to hear from you again, ${visitorName}!`
+              : `You're All Set, ${visitorName}!`}
+          </h2>
           <p className="eq-success-sub">
-            Maya — your personal Škoda AI Customer Management Executive — has been assigned to your enquiry
-            and will reach out within <strong>15–30 minutes</strong>.
+            {submittedData?.returning
+              ? <>Maya has your previous enquiry on record and will pick up right where you left off. Expect a call within <strong>15–30 minutes</strong>.</>
+              : <>Maya — your personal Škoda AI Customer Management Executive — has been assigned to your enquiry and will reach out within <strong>15–30 minutes</strong>.</>
+            }
           </p>
 
           <div className="eq-success-steps">
             {[
-              { icon: '📋', title: 'Enquiry Logged', desc: `Reference ID: ${ticketRef}` },
-              { icon: '🤖', title: 'Maya Assigned', desc: 'AI Agent activated and briefed on your interest' },
-              { icon: '📞', title: 'Expect a Call', desc: `We'll call you at ${phoneDisplay}` },
+              { icon: '📋', title: 'Enquiry Logged',       desc: `Reference ID: ${ticketRef}` },
+              { icon: 'M',  title: 'Maya Assigned',        desc: 'AI Agent activated and briefed on your interest' },
+              { icon: '📞', title: 'Expect a Call',        desc: `We'll call you at ${phoneDisplay}` },
               { icon: '🚗', title: 'Vehicle Consultation', desc: 'Personalised Škoda recommendation awaits you' },
             ].map((s, i, arr) => (
               <div key={i} className={`eq-step${i < arr.length - 1 ? ' has-line' : ''}`}>
@@ -193,7 +197,11 @@ export default function EnquiryPage() {
             className="eq-submit-btn"
             onClick={() => {
               setSubmitted(false); setSubmittedData(null)
-              setForm({ name: '', phone: '', email: '', source: '', preferred_language: '', contact_consent: true, communication_consent: false, location: '', vehicle_model: '', budget: '', enquiry_type: '', notes: '' })
+              setForm({
+                name: '', phone: '', email: '', source: '', preferred_language: '',
+                contact_consent: true, communication_consent: false,
+                location: '', vehicle_model: '', budget: '', enquiry_type: '', notes: ''
+              })
             }}
           >
             <Send size={15} /> Submit Another Enquiry
@@ -209,107 +217,77 @@ export default function EnquiryPage() {
 
   /* ── Main Form ────────────────────────────────────────────────────────── */
   return (
-    <div className="eq-page" style={bgLoaded ? { backgroundImage: "url('/skoda_hero.png')" } : {}}>
-      {/* Cinematic overlay layers */}
+    <div className="eq-page" style={bgStyle}>
       <div className="eq-overlay" />
-      <div className="eq-vignette" />
+      <div className="eq-container animate-eq-in">
 
-      {/* Floating particles */}
-      <div className="eq-particles">
-        {[...Array(16)].map((_, i) => (
-          <span key={i} className="eq-particle" style={{
-            '--d': `${Math.random() * 4 + 2}s`,
-            '--x': `${Math.random() * 100}%`,
-            '--s': `${Math.random() * 0.5 + 0.2}`,
-            animationDelay: `${Math.random() * 5}s`
-          }} />
-        ))}
-      </div>
-
-      {/* Header bar */}
-      <header className="eq-header animate-eq-in">
-        <div className="eq-header-brand">
-          <div className="eq-skoda-logo">
-            <span className="eq-skoda-arrow">▶</span>
-            <span className="eq-skoda-name">ŠKODA</span>
-          </div>
-          <div className="eq-divider-v" />
-          <div className="eq-hom-badge">
-            <Sparkles size={11} />
-            <span>House of MantaRay</span>
-          </div>
-        </div>
-        <div className="eq-header-status">
-          <span className="eq-status-dot" />
-          <span>Maya AI · Online</span>
-        </div>
-      </header>
-
-      {/* Main content grid */}
-      <main className="eq-main">
-
-        {/* ── Left: Hero copy ─────────────────────────────────────── */}
-        <div className="eq-hero animate-eq-in" style={{ animationDelay: '0.1s' }}>
-          <div className="eq-agent-chip">
-            <div className="eq-agent-orb" />
-            <span>AI Customer Management Executive</span>
+        {/* ── Left: Branding Panel ─────────────────────────────────── */}
+        <div className="eq-branding">
+          {/* Brand header */}
+          <div className="eq-brand-header">
+            <div className="eq-skoda-logo">
+              <span className="eq-skoda-arrow">▶</span>
+              <span className="eq-skoda-name">ŠKODA</span>
+            </div>
+            <div className="eq-status-pill">
+              <span className="eq-status-dot" />
+              Maya · Online
+            </div>
           </div>
 
-          <h1 className="eq-hero-title">
-            Meet <span className="eq-maya-gradient">Maya</span>
-            <br />Your Personal
-            <br />Škoda Advisor
-          </h1>
+          {/* Hero */}
+          <div className="eq-hero">
+            <div className="eq-agent-chip">
+              <div className="eq-agent-orb" />
+              AI Customer Management Executive
+            </div>
 
-          <p className="eq-hero-desc">
-            Powered by House of MantaRay's conversational AI, Maya understands your
-            preferences, recommends the perfect Škoda, and guides you through every step
-            of your ownership journey.
-          </p>
+            <h1 className="eq-hero-title">
+              Meet <span className="eq-maya-gradient">Maya</span>
+              <br />Your Personal
+              <br />Škoda Advisor
+            </h1>
 
-          {/* Stats row */}
-          <div className="eq-stats">
-            <AnimatedStat value="3200" suffix="+" label="Leads Managed" />
-            <div className="eq-stat-sep" />
-            <AnimatedStat value="98" suffix="%" label="Satisfaction" />
-            <div className="eq-stat-sep" />
-            <AnimatedStat value="15" suffix="min" label="Avg. Response" />
-          </div>
+            <p className="eq-hero-desc">
+              Powered by House of MantaRay's conversational AI, Maya understands your
+              preferences, recommends the perfect Škoda, and guides you through every
+              step of your ownership journey.
+            </p>
 
-          {/* Feature chips */}
-          <div className="eq-features">
-            {[
-              { icon: <Zap size={14} />, text: 'Instant AI follow-up' },
-              { icon: <Shield size={14} />, text: 'Verified Škoda partner' },
-              { icon: <Sparkles size={14} />, text: 'Personalised consultation' },
-            ].map((f, i) => (
-              <div key={i} className="eq-feature-chip">
-                {f.icon} {f.text}
-              </div>
-            ))}
-          </div>
+            <div className="eq-features">
+              {[
+                { icon: <Zap size={13} />,      text: 'Instant AI follow-up' },
+                { icon: <Shield size={13} />,    text: 'Verified Škoda partner' },
+                { icon: <Sparkles size={13} />,  text: 'Personalised consultation' },
+              ].map((f, i) => (
+                <div key={i} className="eq-feature-chip">
+                  {f.icon} {f.text}
+                </div>
+              ))}
+            </div>
 
-          {/* Model previews */}
-          <div className="eq-models-row">
-            {['Kushaq', 'Slavia', 'Kodiaq', 'Superb'].map(m => (
-              <div key={m} className="eq-model-tag">Škoda {m}</div>
-            ))}
+            <div className="eq-models-row">
+              {['Kushaq', 'Slavia', 'Kodiaq', 'Superb'].map(m => (
+                <div key={m} className="eq-model-tag">Škoda {m}</div>
+              ))}
+            </div>
+
+            <div className="eq-brand-footer">
+              <span className="eq-hom-badge"><Sparkles size={10} /> House of MantaRay</span>
+            </div>
           </div>
         </div>
 
-        {/* ── Right: Glass Form Card ──────────────────────────────── */}
-        <div className="eq-card animate-eq-in" style={{ animationDelay: '0.2s' }}>
-          {/* Card top accent */}
-          <div className="eq-card-accent" />
-
+        {/* ── Right: Form Panel ────────────────────────────────────── */}
+        <div className="eq-form-panel">
           <div className="eq-card-header">
             <div className="eq-card-avatar">
               <div className="eq-avatar-pulse" />
-              🤖
+              M
             </div>
             <div>
-              <h2 className="eq-card-title">Enquire with Maya</h2>
-              <p className="eq-card-sub">Škoda AI · Powered by House of MantaRay</p>
+              <h2 className="eq-card-title">Enquire Now</h2>
+              <p className="eq-card-sub">with MAYA AI · Powered by House of MantaRay</p>
             </div>
           </div>
 
@@ -319,14 +297,13 @@ export default function EnquiryPage() {
             <div className="eq-field">
               <label className="eq-label">Full Name <span className="eq-req">*</span></label>
               <div className="eq-input-wrap">
-                <User size={15} className="eq-input-icon" />
+                <User size={14} className="eq-input-icon" />
                 <input
                   type="text"
                   className="eq-input"
                   placeholder="Enter your full name"
                   value={form.name}
                   onChange={e => updateField('name', e.target.value)}
-                  id="eq-name"
                 />
               </div>
             </div>
@@ -339,7 +316,6 @@ export default function EnquiryPage() {
                   className="eq-code-select"
                   value={countryCode}
                   onChange={e => setCountryCode(e.target.value)}
-                  id="eq-country-code"
                 >
                   <option value="+91">🇮🇳 +91</option>
                   <option value="+1">🇺🇸 +1</option>
@@ -347,14 +323,13 @@ export default function EnquiryPage() {
                   <option value="+971">🇦🇪 +971</option>
                 </select>
                 <div className="eq-input-wrap" style={{ flex: 1 }}>
-                  <Phone size={15} className="eq-input-icon" />
+                  <Phone size={14} className="eq-input-icon" />
                   <input
                     type="tel"
                     className="eq-input"
                     placeholder="Mobile number"
                     value={form.phone}
                     onChange={e => updateField('phone', e.target.value)}
-                    id="eq-phone"
                   />
                 </div>
               </div>
@@ -364,14 +339,13 @@ export default function EnquiryPage() {
             <div className="eq-field">
               <label className="eq-label">Email Address <span className="eq-req">*</span></label>
               <div className="eq-input-wrap">
-                <Mail size={15} className="eq-input-icon" />
+                <Mail size={14} className="eq-input-icon" />
                 <input
                   type="email"
                   className="eq-input"
                   placeholder="your@email.com"
                   value={form.email}
                   onChange={e => updateField('email', e.target.value)}
-                  id="eq-email"
                 />
               </div>
             </div>
@@ -383,38 +357,22 @@ export default function EnquiryPage() {
                 className="eq-select"
                 value={form.source}
                 onChange={e => updateField('source', e.target.value)}
-                id="eq-source"
               >
                 <option value="">Select source</option>
                 {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
-            {/* Language Preference */}
+            {/* Language */}
             <div className="eq-field">
               <label className="eq-label">Preferred Call Language</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: 7 }}>
                 {LANGUAGE_OPTIONS.map(opt => (
                   <button
                     key={opt.value}
                     type="button"
+                    className={`eq-lang-toggle${form.preferred_language === opt.value ? ' active' : ''}`}
                     onClick={() => updateField('preferred_language', form.preferred_language === opt.value ? '' : opt.value)}
-                    style={{
-                      flex: 1,
-                      padding: '8px 4px',
-                      borderRadius: '8px',
-                      border: form.preferred_language === opt.value
-                        ? '1.5px solid #4ade80'
-                        : '1.5px solid rgba(255,255,255,0.15)',
-                      background: form.preferred_language === opt.value
-                        ? 'rgba(74,222,128,0.12)'
-                        : 'rgba(255,255,255,0.05)',
-                      color: form.preferred_language === opt.value ? '#4ade80' : 'rgba(255,255,255,0.7)',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      fontWeight: form.preferred_language === opt.value ? 600 : 400,
-                    }}
                   >
                     {opt.label}
                   </button>
@@ -422,15 +380,16 @@ export default function EnquiryPage() {
               </div>
             </div>
 
-            {/* Vehicle Preferences Toggle */}
+            {/* Vehicle Preferences */}
             <button
               type="button"
               className="eq-prefs-toggle"
               onClick={() => setShowPrefs(!showPrefs)}
-              id="eq-prefs-toggle"
             >
-              <span><Car size={14} /> Vehicle Preferences {showPrefs ? '(hide)' : '(optional)'}</span>
-              <ChevronDown size={15} style={{ transform: showPrefs ? 'rotate(180deg)' : 'none', transition: '0.25s' }} />
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <Car size={14} /> Vehicle Preferences {showPrefs ? '(hide)' : '(optional)'}
+              </span>
+              <ChevronDown size={15} style={{ transform: showPrefs ? 'rotate(180deg)' : 'none', transition: '0.25s', flexShrink: 0 }} />
             </button>
 
             {showPrefs && (
@@ -465,7 +424,7 @@ export default function EnquiryPage() {
                     </select>
                   </div>
                 </div>
-                <div className="eq-field">
+                <div className="eq-field" style={{ marginBottom: 0 }}>
                   <label className="eq-label">Additional Notes</label>
                   <textarea
                     className="eq-textarea"
@@ -473,20 +432,18 @@ export default function EnquiryPage() {
                     value={form.notes}
                     onChange={e => updateField('notes', e.target.value)}
                     rows={3}
-                    id="eq-notes"
                   />
                 </div>
               </div>
             )}
 
-            {/* Consent */}
+            {/* Consents */}
             <div className="eq-consents">
               <label className="eq-consent-label">
                 <input
                   type="checkbox"
                   checked={form.contact_consent}
                   onChange={e => updateField('contact_consent', e.target.checked)}
-                  id="eq-consent-contact"
                 />
                 <span>I consent to being contacted regarding this enquiry</span>
               </label>
@@ -495,35 +452,27 @@ export default function EnquiryPage() {
                   type="checkbox"
                   checked={form.communication_consent}
                   onChange={e => updateField('communication_consent', e.target.checked)}
-                  id="eq-consent-comm"
                 />
                 <span>I agree to be contacted via call, SMS, email or WhatsApp by Škoda</span>
               </label>
             </div>
 
-            {error && <div className="eq-error" role="alert">⚠ {error}</div>}
+            {error && <div className="eq-error">⚠ {error}</div>}
 
-            <button
-              type="submit"
-              className="eq-submit-btn"
-              disabled={submitting}
-              id="eq-submit-btn"
-            >
-              {submitting ? (
-                <><span className="eq-spinner" /> Connecting to Maya...</>
-              ) : (
-                <><Send size={15} /> Submit to Maya</>
-              )}
+            <button type="submit" className="eq-submit-btn" disabled={submitting}>
+              {submitting
+                ? <><span className="eq-spinner" /> Connecting to Maya...</>
+                : <><Send size={14} /> Submit to Maya</>
+              }
             </button>
 
             <p className="eq-footer-note">
               🔒 Your data is secure. By submitting, you agree to our privacy policy.
-              <br />
-              <span style={{ opacity: 0.6 }}>Powered by House of MantaRay · Škoda Verified Partner</span>
             </p>
           </form>
         </div>
-      </main>
+
+      </div>
     </div>
   )
 }

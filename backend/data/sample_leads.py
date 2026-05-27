@@ -310,12 +310,86 @@ def create_lead(data: dict) -> dict:
     return lead
 
 
+def find_duplicate_lead(phone: str, email: str) -> dict | None:
+    """Return an existing lead that matches phone (primary) or email (secondary)."""
+    phone_clean = phone.replace(" ", "").replace("-", "").strip() if phone else ""
+    email_clean = email.strip().lower() if email else ""
+    for lead in _leads_db:
+        if phone_clean:
+            existing_phone = lead.get("phone", "").replace(" ", "").replace("-", "").strip()
+            if existing_phone and existing_phone == phone_clean:
+                return lead
+        if email_clean:
+            existing_email = lead.get("email", "").strip().lower()
+            if existing_email and existing_email == email_clean:
+                return lead
+    return None
+
+
+def merge_lead(lead_id: str, new_data: dict) -> dict:
+    """Merge a new enquiry into an existing lead. Updates info, logs re-enquiry."""
+    lead = get_lead(lead_id)
+    if not lead:
+        return {}
+
+    # Track enquiry count
+    lead["enquiry_count"] = lead.get("enquiry_count", 1) + 1
+
+    # Append re-enquiry note to call history
+    lead.setdefault("call_history", []).append({
+        "call_id":   f"RE-ENQUIRY-{lead['enquiry_count']}",
+        "timestamp": datetime.now().isoformat(),
+        "duration":  "—",
+        "status":    "Re-enquiry",
+        "outcome":   f"Returned via {new_data.get('source', 'enquiry form')} — enquiry #{lead['enquiry_count']}",
+    })
+
+    # Merge preferences (new values win for non-empty fields)
+    new_prefs = new_data.get("preferences", {})
+    if new_prefs:
+        lead.setdefault("preferences", {}).update({k: v for k, v in new_prefs.items() if v})
+
+    # Update top-level fields only if new value is non-empty
+    for field in ("source", "preferred_language", "address"):
+        if new_data.get(field):
+            lead[field] = new_data[field]
+
+    # Upgrade urgency — a returning lead is more serious
+    lead["status"] = "Re-enquiry"
+    if lead.get("tag") == "Cold":
+        lead["tag"] = "Warm"
+
+    lead["last_enquiry_at"] = datetime.now().isoformat()
+    return lead
+
+
 def update_lead_status(lead_id: str, status: str, tag: str = None) -> None:
     lead = get_lead(lead_id)
     if lead:
         lead["status"] = status
         if tag:
             lead["tag"] = tag
+
+
+def update_lead(lead_id: str, patch: dict) -> None:
+    """Merge patch into the lead record; nested 'preferences' are merged, not replaced."""
+    lead = get_lead(lead_id)
+    if not lead:
+        return
+    prefs_patch = patch.get("preferences", None)
+    for key, val in patch.items():
+        if key != "preferences":
+            lead[key] = val
+    if prefs_patch:
+        lead.setdefault("preferences", {}).update(prefs_patch)
+    lead["updated_at"] = datetime.now().isoformat()
+
+
+def delete_lead(lead_id: str) -> bool:
+    global _leads_db
+    before = len(_leads_db)
+    _leads_db = [l for l in _leads_db if l["lead_id"] != lead_id]
+    return len(_leads_db) < before
 
 
 def add_call_to_lead(lead_id: str, call_record: dict) -> None:
@@ -328,6 +402,14 @@ _call_logs: list[dict] = []
 
 def add_call_log(log: dict) -> None:
     _call_logs.append(log)
+
+
+def update_call_log(call_id: str, patch: dict) -> None:
+    """Find a call log entry by call_id and merge patch into it in-place."""
+    for entry in _call_logs:
+        if entry.get("call_id") == call_id:
+            entry.update(patch)
+            return
 
 
 def get_call_logs() -> list[dict]:

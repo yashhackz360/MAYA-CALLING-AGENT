@@ -1,9 +1,23 @@
 import React, { useState, useEffect } from 'react'
 import { apiFetch } from '../App.jsx'
+import { Download } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend
 } from 'recharts'
+
+function exportCSV(rows, columns, filename) {
+  const header = columns.map(c => `"${c.label}"`).join(',')
+  const body   = rows.map(row =>
+    columns.map(c => `"${String(row[c.key] ?? '').replace(/"/g, '""')}"` ).join(',')
+  )
+  const csv  = [header, ...body].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
 
 const COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#6366f1', '#06b6d4']
 
@@ -59,8 +73,46 @@ export default function Analytics() {
     boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
   }
 
+  const exportAnalytics = () => {
+    const rows = [
+      { metric: 'Total Leads',      value: a.total_leads },
+      { metric: 'Hot Leads',        value: a.hot_leads },
+      { metric: 'Warm Leads',       value: a.warm_leads },
+      { metric: 'Cold Leads',       value: a.cold_leads },
+      { metric: 'Contacted',        value: a.contacted },
+      { metric: 'Qualified',        value: a.qualified },
+      { metric: 'Calls Today',      value: a.calls_today },
+      { metric: 'Total Calls',      value: a.total_calls },
+      { metric: 'Conversion Rate',  value: `${a.conversion_rate}%` },
+    ]
+    const leadsRows = leads.map(l => ({
+      name:     l.name,
+      phone:    l.phone,
+      tag:      l.tag,
+      status:   l.status,
+      source:   l.source,
+      language: l.preferred_language,
+      vehicle:  l.preferences?.vehicle_model || '',
+      calls:    l.call_history?.length || 0,
+    }))
+    exportCSV(rows,      [{ label: 'Metric', key: 'metric' }, { label: 'Value', key: 'value' }], 'analytics-kpis.csv')
+    exportCSV(leadsRows, [
+      { label: 'Name', key: 'name' }, { label: 'Phone', key: 'phone' },
+      { label: 'Tag', key: 'tag' }, { label: 'Status', key: 'status' },
+      { label: 'Source', key: 'source' }, { label: 'Language', key: 'language' },
+      { label: 'Vehicle', key: 'vehicle' }, { label: 'Calls', key: 'calls' },
+    ], 'analytics-leads.csv')
+  }
+
   return (
     <div className="animate-fadeInUp">
+      {/* Export button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button className="topbar-btn btn-ghost" style={{ gap: 6 }} onClick={exportAnalytics}>
+          <Download size={14} /> Export to Excel
+        </button>
+      </div>
+
       {/* KPIs */}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         {[
@@ -102,7 +154,7 @@ export default function Analytics() {
           <div className="card-body">
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
                   {pieData.map((_, i) => <Cell key={i} fill={['#ef4444', '#f59e0b', '#3b82f6'][i]} />)}
                 </Pie>
                 <Tooltip contentStyle={tooltipStyle} />

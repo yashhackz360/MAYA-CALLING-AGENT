@@ -1,11 +1,4 @@
-# Secrets and local env
-.env
-.env.local
-.env.*.local
-backend/.env
-frontend/.env
-
-# Python
+# ─── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -16,20 +9,34 @@ __pycache__/
 .venv/
 venv/
 
-# Node
+# ─── Node / Frontend ──────────────────────────────────────────────────────────
 node_modules/
 frontend/node_modules/
 frontend/.vite/
 frontend/dist/
 
-# OS / IDE
+# ─── Logs & runtime outputs ───────────────────────────────────────────────────
+*.log
+twilio_relay.log
+uvicorn.log
+backend_debug.log
+
+# ─── Audio / media test artifacts ─────────────────────────────────────────────
+*.mp3
+*.wav
+*.ogg
+
+# ─── OS / IDE ─────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 .claude/
 
-# Logs and temp files
-*.log
+# ─── Docker local volumes ─────────────────────────────────────────────────────
+docker-data/
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
 *.tmp
 *.temp
+*.bak

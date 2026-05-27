@@ -1,39 +1,42 @@
-# ─── MantaRay AI Backend — Production Dockerfile ─────────────────────────────
-FROM python:3.11-slim
+# ─── MantaRay AI Backend — Production Dockerfile ──────────────────────────────
+# Stack: FastAPI + Uvicorn + Twilio + ElevenLabs relay
+# Python 3.13 slim — audioop-lts handles µ-law PCM transcoding
 
-# Metadata
-LABEL maintainer="MantaRay AI Team"
-LABEL description="Real Estate AI Calling Agent — Backend API"
-LABEL version="1.0.0"
+FROM python:3.13-slim
 
-# Set working directory
-WORKDIR /app
+LABEL maintainer="MantaRay AI"
+LABEL description="Škoda Auto India — AI Calling Agent Backend"
+LABEL version="3.0.0"
 
-# Install system dependencies
+# ── System deps ────────────────────────────────────────────────────────────────
+# curl: healthcheck   gcc/python3-dev: audioop-lts native build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    gcc \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (layer caching)
-COPY requirements.txt .
+WORKDIR /app
 
-# Install Python dependencies
+# ── Python deps (cached layer) ─────────────────────────────────────────────────
+COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# ── Application code ───────────────────────────────────────────────────────────
 COPY . .
 
-# Create non-root user for security
-RUN groupadd -r mantaray && useradd -r -g mantaray mantaray
+# ── Non-root user ──────────────────────────────────────────────────────────────
+RUN groupadd -r mantaray && useradd -r -g mantaray -d /app mantaray \
+    && chown -R mantaray:mantaray /app
 USER mantaray
 
-# Expose port
+# ── Runtime ────────────────────────────────────────────────────────────────────
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
-# Start command
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Single worker — WebSocket relay state is process-local (in-memory leads store)
+CMD ["python", "-m", "uvicorn", "main:app", \
+     "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

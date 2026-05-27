@@ -1,16 +1,35 @@
-# Local secrets
-.env
+# ─── Backend Docker Build Exclusions ─────────────────────────────────────────
 
-# Python cache / local tooling
+# Secrets — never bake into image
+.env
+.env.local
+
+# Python cache
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 
-# Local virtual envs
+# Virtual environments
 .venv/
 venv/
 
-# Local outputs
+# Logs and runtime outputs
 *.log
+twilio_relay.log
+
+# Audio sample files (test artifacts)
+*.mp3
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore

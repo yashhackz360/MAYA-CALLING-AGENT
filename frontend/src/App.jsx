@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Users, Phone, Megaphone, BarChart3,
-  FileText, Zap, Activity, LogOut, Menu, X, Bot
+  LayoutDashboard, Users, Megaphone, BarChart3,
+  FileText, Zap, Activity, LogOut, Menu, X, Bot, CreditCard, Phone, RotateCw
 } from 'lucide-react'
 
 import Dashboard from './pages/Dashboard.jsx'
 import Leads from './pages/Leads.jsx'
-import CallConsole from './pages/CallConsole.jsx'
+import LeadDetail from './pages/LeadDetail.jsx'
+import LeadEdit from './pages/LeadEdit.jsx'
 import Campaigns from './pages/Campaigns.jsx'
 import Analytics from './pages/Analytics.jsx'
 import CallLogs from './pages/CallLogs.jsx'
+import CallLogEdit from './pages/CallLogEdit.jsx'
 import EnquiryPage from './pages/EnquiryPage.jsx'
 import LeadGeneration from './pages/LeadGeneration.jsx'
 import LoginPage from './pages/LoginPage.jsx'
+import Billing from './pages/Billing.jsx'
 
 // ─── API Helper ───────────────────────────────────────────────────────────────
 
@@ -38,11 +41,11 @@ export async function apiFetch(path, options = {}) {
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { to: '/leads', label: 'Leads', icon: Users, badge: '10' },
-  { to: '/call-console', label: 'Call Console', icon: Phone },
   { to: '/lead-generation', label: 'Lead Generation', icon: Zap, badge: 'NEW' },
   { to: '/campaigns', label: 'Campaigns', icon: Megaphone },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/call-logs', label: 'Call Logs', icon: FileText },
+  { to: '/billing', label: 'Billing & Payments', icon: CreditCard },
 ]
 
 function Sidebar({ activeCalls, user, onLogout, isOpen }) {
@@ -72,9 +75,6 @@ function Sidebar({ activeCalls, user, onLogout, isOpen }) {
             <Icon size={16} />
             {label}
             {badge && <span className="nav-badge" style={badge === 'NEW' ? { background: '#059669', fontSize: 9 } : {}}>{badge}</span>}
-            {label === 'Call Console' && activeCalls > 0 && (
-              <span className="nav-badge" style={{ background: '#059669' }}>{activeCalls}</span>
-            )}
           </NavLink>
         ))}
       </nav>
@@ -84,7 +84,7 @@ function Sidebar({ activeCalls, user, onLogout, isOpen }) {
         <div className="agent-status-card">
           <div className="agent-avatar"><Bot size={16} color="#fff" /></div>
           <div className="agent-info">
-            <div className="agent-name">Maya — AI Voice Agent</div>
+            <div className="agent-name">Maya — AI Calling Agent</div>
             <div className="agent-status-text">
               <span className="status-dot" style={{ background: '#4ba82e' }}></span>
               Online & Ready
@@ -108,11 +108,11 @@ function Sidebar({ activeCalls, user, onLogout, isOpen }) {
 const PAGE_META = {
   '/': { title: 'Dashboard', subtitle: 'Real-time customer overview' },
   '/leads': { title: 'Customer Management', subtitle: 'Manage and qualify your leads' },
-  '/call-console': { title: 'Call Console', subtitle: 'AI-powered calling interface' },
   '/lead-generation': { title: 'Lead Generation', subtitle: 'Enquiry pipeline' },
   '/campaigns': { title: 'Campaigns', subtitle: 'Campaign performance tracking' },
   '/analytics': { title: 'Analytics', subtitle: 'Deep-dive metrics' },
   '/call-logs': { title: 'Call Logs', subtitle: 'Complete call history' },
+  '/billing':   { title: 'Billing & Payments', subtitle: 'Invoices and service subscriptions' },
 }
 
 function TopBar({ sidebarOpen, onToggleSidebar }) {
@@ -148,6 +148,14 @@ function TopBar({ sidebarOpen, onToggleSidebar }) {
       </div>
       <div className="topbar-right">
         <span className="text-muted" style={{ fontSize: 12 }}>{now}</span>
+        <button
+          className="topbar-btn btn-ghost"
+          style={{ padding: '6px 10px', fontSize: 12 }}
+          title="Refresh page"
+          onClick={() => window.location.reload()}
+        >
+          <RotateCw size={14} />
+        </button>
         <div style={{
           width: 8, height: 8, background: '#4ba82e',
           borderRadius: '50%', boxShadow: '0 0 8px #4ba82e'
@@ -163,7 +171,6 @@ function TopBar({ sidebarOpen, onToggleSidebar }) {
 // ─── Layout Wrapper — conditional for /enquiry ───────────────────────────────
 
 function AppLayout({ user, onLogout }) {
-  const [activeCalls, setActiveCalls] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const location = useLocation()
 
@@ -175,7 +182,7 @@ function AppLayout({ user, onLogout }) {
   return (
     <div className="app-layout">
       <Sidebar
-        activeCalls={activeCalls}
+        activeCalls={0}
         user={user}
         onLogout={onLogout}
         isOpen={sidebarOpen}
@@ -186,12 +193,14 @@ function AppLayout({ user, onLogout }) {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/leads" element={<Leads />} />
-            <Route path="/call-console" element={<CallConsole onActiveCallsChange={setActiveCalls} />} />
-            <Route path="/call-console/:leadId" element={<CallConsole onActiveCallsChange={setActiveCalls} />} />
+            <Route path="/leads/:id" element={<LeadDetail />} />
+            <Route path="/leads/:id/edit" element={<LeadEdit />} />
             <Route path="/lead-generation" element={<LeadGeneration />} />
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/call-logs" element={<CallLogs />} />
+            <Route path="/call-logs/:call_id/edit" element={<CallLogEdit />} />
+            <Route path="/billing" element={<Billing />} />
           </Routes>
         </div>
       </div>

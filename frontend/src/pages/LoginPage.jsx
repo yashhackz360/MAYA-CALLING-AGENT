@@ -54,8 +54,8 @@ export default function LoginPage({ onLogin }) {
           <div className="login-logo-box">
             <Phone size={28} color="#fff" />
           </div>
-          <h1 className="login-brand-title">MantaRay AI</h1>
-          <p className="login-brand-sub">Škoda Auto India · AI Voice Agent</p>
+          <h1 className="login-brand-title">Maya : AI Calling Agent</h1>
+          <p className="login-brand-sub">Powered by House of MantaRay</p>
 
           <div className="login-features">
             <div className="login-feature-item">
@@ -72,7 +72,7 @@ export default function LoginPage({ onLogin }) {
             </div>
             <div className="login-feature-item">
               <div className="login-feature-dot" />
-              <span>Powered by xAI Grok</span>
+              <span>Advanced AI Conversation Engine</span>
             </div>
           </div>
         </div>
@@ -166,9 +166,6 @@ export default function LoginPage({ onLogin }) {
             </div>
           </div>
 
-          <p className="login-footer-text">
-            © 2026 House of Mantaray · Powered by xAI Grok
-          </p>
         </div>
       </div>
     </div>
