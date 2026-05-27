@@ -34,6 +34,13 @@ from data.sample_leads import (
     find_duplicate_lead, merge_lead,
 )
 
+from data.dealerships import (
+    get_dealers_for_city, get_dealer_for_city,
+    get_inventory_for_model, get_variant_availability,
+    build_dealer_intelligence, list_all_cities, list_all_models,
+    get_full_dealer_list, INVENTORY,
+)
+
 TWILIO_SID    = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_TOKEN  = os.getenv("TWILIO_AUTH_TOKEN",  "")
 TWILIO_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")
@@ -296,6 +303,71 @@ def analytics():
 @app.get("/api/campaigns")
 def campaigns():
     return {"campaigns": get_campaigns()}
+
+# ─── Dealership Intelligence API ──────────────────────────────────────────────────
+
+@app.get("/api/dealerships")
+def list_dealerships(city: Optional[str] = None):
+    """Return all dealerships, optionally filtered by city."""
+    if city:
+        dealers = get_dealers_for_city(city)
+        if not dealers:
+            raise HTTPException(status_code=404, detail=f"No dealerships found for city: {city}")
+        return {"city": city, "dealerships": dealers, "count": len(dealers)}
+    return {"dealerships": get_full_dealer_list(), "cities": list_all_cities()}
+
+
+@app.get("/api/dealerships/cities")
+def supported_cities():
+    """Return all cities that have Skňoda dealerships."""
+    return {"cities": list_all_cities()}
+
+
+@app.get("/api/inventory")
+def list_inventory(model: Optional[str] = None, variant: Optional[str] = None):
+    """Return inventory for all models or a specific model + optional variant filter."""
+    if model:
+        data = get_inventory_for_model(model)
+        if not data:
+            raise HTTPException(status_code=404, detail=f"Model not found: {model}")
+        variants = get_variant_availability(model, variant or "")
+        return {"model": model, "details": data, "variants": variants}
+    # Return summary for all models
+    summary = []
+    for name, data in INVENTORY.items():
+        summary.append({
+            "model":       name,
+            "category":    data["category"],
+            "price_range": data["price_range"],
+            "tagline":     data["tagline"],
+            "models":      list_all_models(),
+        })
+    return {"inventory": summary}
+
+
+@app.get("/api/dealer-intelligence")
+def dealer_intelligence(
+    city: str,
+    model: Optional[str] = None,
+    variant: Optional[str] = None,
+    transmission: Optional[str] = None,
+):
+    """
+    Returns AI-ready context strings for a city + model combination.
+    These are the exact strings injected into the ElevenLabs voice agent.
+    """
+    intel = build_dealer_intelligence(
+        city=city,
+        model=model or "",
+        variant=variant or "",
+        transmission=transmission or "",
+    )
+    return {
+        "city":  city,
+        "model": model,
+        "intelligence": intel,
+    }
+
 
 # ─── Billing / Razorpay ───────────────────────────────────────────────────────
 

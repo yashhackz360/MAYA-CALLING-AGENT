@@ -42,6 +42,8 @@ from websockets.exceptions import ConnectionClosedOK, ConnectionClosed
 from fastapi import APIRouter, Request, WebSocket
 from fastapi.responses import Response
 
+from data.dealerships import build_dealer_intelligence
+
 router = APIRouter()
 
 # ── File logger ───────────────────────────────────────────────────────────────
@@ -129,6 +131,19 @@ def _build_dynamic_variables(lead: dict) -> list[dict]:
     if lead.get("enquiry_count", 1) > 1:
         notes = f"[Returning customer — enquiry #{lead['enquiry_count']}] " + notes
 
+    # ── Dealership Intelligence Layer ─────────────────────────────────────────
+    city         = prefs.get("location", "")
+    model        = prefs.get("vehicle_model", "")
+    variant      = prefs.get("variant", "")
+    transmission = prefs.get("transmission", "")
+
+    dealer_intel = build_dealer_intelligence(
+        city=city,
+        model=model,
+        variant=variant,
+        transmission=transmission,
+    )
+
     return [
         {"name": "customer_name",    "value": lead.get("name", "there")},
         {"name": "vehicle_interest", "value": vehicle},
@@ -139,6 +154,12 @@ def _build_dynamic_variables(lead: dict) -> list[dict]:
         {"name": "purpose",          "value": prefs.get("purpose", "")},
         {"name": "lead_tag",         "value": lead.get("tag", "Warm")},
         {"name": "notes",            "value": notes[:300] if notes else "No additional notes"},
+        # ── Dealership Intelligence ───────────────────────────────────────────
+        {"name": "dealer_info",        "value": dealer_intel["dealer_info"]},
+        {"name": "inventory_status",   "value": dealer_intel["inventory_status"]},
+        {"name": "current_offers",     "value": dealer_intel["current_offers"]},
+        {"name": "appointment_prompt", "value": dealer_intel["appointment_prompt"]},
+        {"name": "city_served",        "value": dealer_intel["city_served"]},
     ]
 
 

@@ -31,10 +31,23 @@ export default function LeadDetail() {
   const [lead, setLead] = useState(null)
   const [calling, setCalling] = useState(false)
   const [callMsg, setCallMsg] = useState('')
+  const [dealerIntel, setDealerIntel] = useState(null)
 
   useEffect(() => {
     apiFetch(`/api/leads/${id}`).then(setLead).catch(() => navigate('/leads'))
   }, [id])
+
+  useEffect(() => {
+    if (!lead) return
+    const city  = lead.preferences?.location
+    const model = lead.preferences?.vehicle_model
+    if (!city) return
+    const params = new URLSearchParams({ city })
+    if (model) params.append('model', model)
+    apiFetch(`/api/dealer-intelligence?${params}`)
+      .then(data => setDealerIntel(data?.intelligence || null))
+      .catch(() => {})
+  }, [lead])
 
   const callNow = async () => {
     setCalling(true); setCallMsg('')
@@ -160,7 +173,60 @@ export default function LeadDetail() {
         </Section>
       )}
 
-      {/* CRM details */}
+      {/* ── Dealership Intelligence Layer ───────────────────────────── */}
+      {dealerIntel && (
+        <>
+          {/* Nearest Dealership */}
+          <div className="di-section">
+            <div className="di-section-title">🏢 Nearest Dealership — {dealerIntel.city_served}</div>
+            <div className="di-dealer-card">
+              <div className="di-dealer-header">
+                <div className="di-dealer-icon">🏬</div>
+                <div>
+                  <div className="di-dealer-name">Local Škoda Showroom</div>
+                  <div className="di-dealer-area">{dealerIntel.city_served}</div>
+                </div>
+              </div>
+              <div className="di-ai-context">{dealerIntel.dealer_info}</div>
+            </div>
+          </div>
+
+          {/* Inventory & Offers */}
+          {(dealerIntel.inventory_status || dealerIntel.current_offers) && (
+            <div className="di-section">
+              <div className="di-section-title">📦 Inventory & Offers</div>
+              {dealerIntel.inventory_status && (
+                <div className="di-ai-context" style={{ marginBottom: 8 }}>
+                  {dealerIntel.inventory_status}
+                </div>
+              )}
+              {dealerIntel.current_offers && (
+                <div className="di-offers-banner">
+                  <span className="di-offers-icon">🎁</span>
+                  <div className="di-offers-text">
+                    <strong>Current Offers</strong>
+                    {dealerIntel.current_offers}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Appointment CTA */}
+          {dealerIntel.appointment_prompt && (
+            <div className="di-section">
+              <div className="di-section-title">📅 Recommended Action</div>
+              <div className="di-appointment-cta" onClick={() => navigate(`/leads/${id}/edit`)}>
+                <div className="di-appointment-cta-text">
+                  <div className="di-appointment-cta-title">Schedule Test Drive</div>
+                  <div className="di-appointment-cta-sub">{dealerIntel.appointment_prompt}</div>
+                </div>
+                <span className="di-appointment-cta-arrow">→</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
       {(lead.engagability || lead.next_action || lead.follow_up_date) && (
         <Section label="CRM Details">
           <InfoRow icon={<span style={{ fontSize: 11 }}>📊</span>} label="Engagability"  value={lead.engagability} />

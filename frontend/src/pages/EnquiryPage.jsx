@@ -76,6 +76,8 @@ export default function EnquiryPage() {
   const [error, setError] = useState('')
   const [showPrefs, setShowPrefs] = useState(false)
   const [bgLoaded, setBgLoaded] = useState(false)
+  const [dealerPreview, setDealerPreview] = useState(null)
+  const [loadingDealer, setLoadingDealer] = useState(false)
 
   useEffect(() => {
     const img = new Image()
@@ -84,6 +86,21 @@ export default function EnquiryPage() {
     const t = setTimeout(() => setBgLoaded(true), 2500)
     return () => clearTimeout(t)
   }, [])
+
+  // Fetch dealer intelligence when city or model changes
+  useEffect(() => {
+    if (!form.location) { setDealerPreview(null); return }
+    const controller = new AbortController()
+    setLoadingDealer(true)
+    const params = new URLSearchParams({ city: form.location })
+    if (form.vehicle_model) params.append('model', form.vehicle_model)
+    fetch(`${API_BASE}/api/dealer-intelligence?${params}`, { signal: controller.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setDealerPreview(data.intelligence) })
+      .catch(() => {})
+      .finally(() => setLoadingDealer(false))
+    return () => controller.abort()
+  }, [form.location, form.vehicle_model])
 
   const bgStyle = bgLoaded ? { backgroundImage: "url('/skoda_lineup.jpg')" } : {}
 
@@ -434,6 +451,35 @@ export default function EnquiryPage() {
                     rows={3}
                   />
                 </div>
+
+                {/* ── Dealership Intelligence Preview ── */}
+                {(form.location || form.vehicle_model) && (
+                  <div style={{ marginTop: 14 }}>
+                    <div className="di-section-title" style={{ marginTop: 0 }}>🏢 Nearest Dealership</div>
+                    <div className={`di-inline-preview${dealerPreview ? ' loaded' : ''}`}>
+                      {loadingDealer
+                        ? '⏳ Finding nearest Škoda showroom…'
+                        : dealerPreview
+                          ? dealerPreview.dealer_info
+                          : 'Select a city to see your nearest Škoda dealership.'
+                      }
+                    </div>
+                    {dealerPreview?.inventory_status && (
+                      <div className="di-inline-preview loaded" style={{ marginTop: 6 }}>
+                        📦 {dealerPreview.inventory_status}
+                      </div>
+                    )}
+                    {dealerPreview?.current_offers && (
+                      <div className="di-offers-banner" style={{ marginTop: 8 }}>
+                        <span className="di-offers-icon">🎁</span>
+                        <div className="di-offers-text">
+                          <strong>Current Offers</strong>
+                          {dealerPreview.current_offers}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
