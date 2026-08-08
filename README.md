@@ -1,4 +1,4 @@
-# MantaRay AI — Customer Care Agent
+# Maya AI — Customer Care Agent
 
 AI calling agent that conducts professional customer care calls for Škoda Auto India in formal Indian English. **Maya** — the AI voice — dials customers via Twilio, speaks through ElevenLabs Tara, and drives a natural discovery conversation to qualify vehicle enquiries over a real PSTN phone call.
 
