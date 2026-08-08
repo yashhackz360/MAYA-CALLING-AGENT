@@ -1,4 +1,4 @@
-# MAYA Calling Agent — Škoda Auto India
+# MAYA Calling Agent —  India
 
 AI-powered voice sales agent that conducts professional customer care calls for Škoda Auto India. **Maya** — the AI voice — dials customers via Twilio, speaks through ElevenLabs (Tara voice), drives a natural discovery conversation to qualify vehicle enquiries over a real PSTN phone call, and now speaks with **city-specific dealership and inventory awareness** via the Dealership Intelligence Layer.
 
