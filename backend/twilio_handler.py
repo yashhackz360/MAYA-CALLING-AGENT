@@ -72,7 +72,7 @@ def _read_env(key: str) -> str:
     return os.getenv(key, "")
 
 def _public_url() -> str:
-    val = _read_env("PUBLIC_BASE_URL")
+    val = _read_env("PUBLIC_BASE_URL").rstrip("/") or "https://mantaray-backend.onrender.com"
     log.info(f"[URL] {val}")
     return val
 
@@ -354,7 +354,7 @@ async def twilio_voice_webhook(request: Request):
         call_status = form.get("CallStatus", "unknown")
         log.info(f"[Webhook] POST /twilio/voice — CallSid={call_sid} Status={call_status}")
 
-        base_url = _public_url()
+        base_url = _public_url() or f"https://{request.headers.get('host', 'mantaray-backend.onrender.com')}"
         if not base_url:
             log.error("[Webhook] PUBLIC_BASE_URL empty — returning error TwiML")
             return Response(
@@ -362,7 +362,8 @@ async def twilio_voice_webhook(request: Request):
                 media_type="application/xml", status_code=200,
             )
 
-        host   = base_url.replace("https://", "").replace("http://", "").rstrip("/")
+        host   = (base_url.replace("https://", "").replace("http://", "").rstrip("/")
+                  or request.headers.get("host", "mantaray-backend.onrender.com"))
         ws_url = f"wss://{host}/ws/twilio-stream/{call_sid}"
         log.info(f"[Webhook] Stream URL: {ws_url}")
 
