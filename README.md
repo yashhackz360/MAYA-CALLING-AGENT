@@ -56,7 +56,26 @@ ngrok http 8000
 start.bat              # launches backend + frontend together
 start_backend.bat      # backend only
 start_frontend.bat     # frontend only
+demo_ready_start.bat   # switches live Render deployment to DEMO_MODE=false (real Twilio calls ON)
+demo_ready_stop.bat    # switches live Render deployment to DEMO_MODE=true  (safe simulated mode ON)
 ```
+
+### Live Presentation Toggle (`DEMO_MODE`)
+
+By default, the public cloud deployment runs with `DEMO_MODE=true` so visitors can explore the CRM and submit enquiries without consuming Twilio or ElevenLabs credits.
+
+- **Enable Live Outbound Calls (`DEMO_MODE=false`) before presenting:**
+  ```powershell
+  .\demo_ready_start.bat
+  ```
+- **Re-enable Safe Demo Mode (`DEMO_MODE=true`) after presenting:**
+  ```powershell
+  .\demo_ready_stop.bat
+  ```
+- **Check current mode status:**
+  ```powershell
+  curl.exe https://mantaray-backend.onrender.com/health
+  ```
 
 ---
 
