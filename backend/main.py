@@ -56,6 +56,9 @@ except ImportError:
 
 # ─── App Setup ────────────────────────────────────────────────────────────────
 
+# DEMO_MODE=true disables real Twilio calls (safe for a public live demo)
+DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() in ("1", "true", "yes")
+
 app = FastAPI(
     title="MantaRay AI — Škoda Customer Care Agent API",
     version="3.0.0",
@@ -64,7 +67,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "*"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000"]
+    + [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()],
+    allow_origin_regex=os.getenv("ALLOWED_ORIGIN_REGEX") or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -191,6 +196,9 @@ async def call_lead(lead_id: str):
     lead = get_lead(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    if DEMO_MODE:
+        return {"success": True, "demo": True, "status": "simulated",
+                "to": lead.get("phone", ""), "message": "Demo mode: no real call placed"}
     if not TWILIO_SID or not TWILIO_TOKEN or not TWILIO_NUMBER:
         raise HTTPException(status_code=503, detail="Twilio credentials not configured")
     phone = lead.get("phone", "").strip()
@@ -230,7 +238,7 @@ async def add_lead(payload: LeadCreate):
             await broadcast_new_lead(lead)
 
         # ── Auto-dial ─────────────────────────────────────────────────────────
-        if TWILIO_SID and lead.get("contact_consent", True) and lead.get("phone"):
+        if not DEMO_MODE and TWILIO_SID and lead.get("contact_consent", True) and lead.get("phone"):
             try:
                 from twilio.rest import Client as TwilioClient
                 from twilio_handler import _public_url

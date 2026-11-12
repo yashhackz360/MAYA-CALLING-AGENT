@@ -40,3 +40,9 @@ docker-data/
 *.tmp
 *.temp
 *.bak
+
+# Secrets
+.env
+*.env
+!.env.example
+!*.env.example
