@@ -46,30 +46,35 @@ from data.dealerships import build_dealer_intelligence
 
 router = APIRouter()
 
-# ── File logger ───────────────────────────────────────────────────────────────
+# ── Console logger (file logger optional for read-only / container environments)
 _LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "twilio_relay.log")
+_handlers: list[logging.Handler] = [logging.StreamHandler()]
+try:
+    _handlers.append(logging.FileHandler(_LOG_FILE, encoding="utf-8"))
+except Exception:
+    pass
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s %(message)s",
-    handlers=[
-        logging.FileHandler(_LOG_FILE, encoding="utf-8"),
-        logging.StreamHandler(),
-    ]
+    handlers=_handlers,
 )
 log = logging.getLogger("relay")
 
 _ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 
 def _read_env(key: str) -> str:
+    val = os.getenv(key, "").strip().strip('"').strip("'")
+    if val:
+        return val
     try:
         with open(_ENV_FILE, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line.startswith(f"{key}=") and not line.startswith("#"):
-                    return line.split("=", 1)[1].strip()
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
     except Exception:
         pass
-    return os.getenv(key, "")
+    return ""
 
 def _public_url() -> str:
     val = _read_env("PUBLIC_BASE_URL").rstrip("/") or "https://mantaray-backend.onrender.com"
@@ -416,6 +421,18 @@ async def twilio_media_stream(websocket: WebSocket, call_sid: str):
 
     if not el_agent_id or not el_api_key:
         log.error("[WS] Missing ELEVENLABS_AGENT_ID or ELEVENLABS_API_KEY — closing")
+        try:
+            from data.sample_leads import add_call_log
+            add_call_log({
+                "call_id": call_sid, "lead_id": lead_id, "recipient": customer_name,
+                "lead_name": customer_name, "phone": customer_phone, "duration": "0:00",
+                "status": "Failed",
+                "outcome": f"Missing env: AGENT_ID={bool(el_agent_id)} API_KEY={bool(el_api_key)}",
+                "date": datetime.now().isoformat(), "timestamp": datetime.now().isoformat(),
+                "escalated": False, "transcript": [],
+            })
+        except Exception:
+            pass
         await websocket.close(code=1011)
         return
 
@@ -675,10 +692,12 @@ async def twilio_media_stream(websocket: WebSocket, call_sid: str):
                 f"EL_sent={el_send_count} EL_audio={el_audio_count} "
                 f"transcript_turns={len(transcript)}"
             )
+            call_outcome = "Maya AI call completed"
 
     except Exception as e:
         log.error(f"[WS] ElevenLabs connection error: {type(e).__name__}: {e}")
         traceback.print_exc()
+        call_outcome = f"ElevenLabs error: {type(e).__name__}: {e}"
     finally:
         # ── Save call log ─────────────────────────────────────────────────────
         duration_s   = int(time.time() - call_start)
@@ -695,7 +714,7 @@ async def twilio_media_stream(websocket: WebSocket, call_sid: str):
                 "phone":      customer_phone,
                 "duration":   duration_str,
                 "status":     "Completed",
-                "outcome":    "Maya AI call completed",
+                "outcome":    locals().get("call_outcome", "Maya AI call completed"),
                 "date":       datetime.now().isoformat(),
                 "timestamp":  datetime.now().isoformat(),
                 "escalated":  False,
