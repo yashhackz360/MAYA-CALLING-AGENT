@@ -112,6 +112,10 @@ class BillingVerifyRequest(BaseModel):
     razorpay_signature: str
     invoice_id: str
 
+class ModeToggleRequest(BaseModel):
+    demo_mode: bool
+    key: str = ""
+
 # ─── CRM WebSocket — Real-time Lead Notifications ────────────────────────────
 
 _crm_clients: set[WebSocket] = set()
@@ -161,7 +165,22 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+    return {"status": "healthy", "demo_mode": DEMO_MODE, "timestamp": datetime.now().isoformat()}
+
+@app.post("/api/admin/demo-mode")
+def toggle_demo_mode(payload: ModeToggleRequest):
+    """Instantly toggle DEMO_MODE at runtime without redeploying."""
+    global DEMO_MODE
+    expected_key = os.getenv("ADMIN_KEY", "admin123")
+    if payload.key != expected_key:
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    DEMO_MODE = payload.demo_mode
+    return {
+        "success": True,
+        "demo_mode": DEMO_MODE,
+        "live_calls_enabled": not DEMO_MODE,
+        "message": "SAFE MODE ON (calls simulated)" if DEMO_MODE else "LIVE CALLS ENABLED (Twilio + ElevenLabs active)",
+    }
 
 # ─── Leads API ────────────────────────────────────────────────────────────────
 
