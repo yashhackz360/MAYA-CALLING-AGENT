@@ -25,6 +25,7 @@ backend_debug.log
 *.mp3
 *.wav
 *.ogg
+!frontend/public/demo/*.mp3
 
 # ─── OS / IDE ─────────────────────────────────────────────────────────────────
 .DS_Store
