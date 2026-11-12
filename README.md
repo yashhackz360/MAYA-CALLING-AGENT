@@ -15,7 +15,7 @@ AI-powered voice sales agent that conducts professional customer care calls for 
 | **Sample AI Call Recording (MP3)** | [Listen to / Download Maya Live Call Recording](https://maya-calling-agent.vercel.app/demo/maya-demo-call.mp3) · ([GitHub Raw MP3](./frontend/public/demo/maya-demo-call.mp3)) |
 | **Backend API & Docs** | [https://mantaray-backend.onrender.com/docs](https://mantaray-backend.onrender.com/docs) |
 
-> **Recruiter Note:** Click the sample call recording above to hear a real outbound PSTN call conducted by **Maya** (ElevenLabs Tara voice over Twilio Media Streams) qualifying a Škoda Auto India customer enquiry in real time.
+> **Note:** Click the sample call recording above to hear a real outbound PSTN call conducted by **Maya** (ElevenLabs Tara voice over Twilio Media Streams) qualifying a Škoda Auto India customer enquiry in real time.
 
 ---
 
