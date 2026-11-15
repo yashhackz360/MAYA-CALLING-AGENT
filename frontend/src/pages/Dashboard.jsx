@@ -31,14 +31,25 @@ function MiniBar({ data, color }) {
 function LeadRow({ lead, onCall }) {
   const navigate = useNavigate()
   return (
-    <tr style={{ cursor: 'pointer' }} onClick={() => navigate('/leads')}>
+    <tr style={{ cursor: 'pointer' }} onClick={() => navigate(`/leads/${lead.lead_id}`)}>
       <td>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div className="lead-avatar" style={{ width: 34, height: 34, fontSize: 13, flexShrink: 0 }}>
             {lead.name[0]}{lead.name.split(' ')[1]?.[0] || ''}
           </div>
           <div>
-            <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{lead.name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>{lead.name}</span>
+              {(lead.recording_url || lead.recording_sid || lead.is_demo_reference) && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: 'var(--brand-primary)',
+                  background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.22)',
+                  borderRadius: 999, padding: '1px 6px',
+                }}>
+                  🎙 Recorded
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lead.email}</div>
           </div>
         </div>

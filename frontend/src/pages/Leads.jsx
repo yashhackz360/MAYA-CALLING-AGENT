@@ -843,6 +843,14 @@ export default function Leads() {
                     </span>
                   ) : null
                 })()}
+                {(lead.recording_url || lead.recording_sid || lead.is_demo_reference) && (
+                  <span style={{
+                    padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 700,
+                    background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.28)', color: 'var(--brand-primary)',
+                  }}>
+                    🎙 Recording & Transcript
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
                 <span>📱 {lead.phone}</span>

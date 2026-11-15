@@ -40,6 +40,60 @@ const LOG_COLUMNS = [
 
 const DEMO_LOGS = [
   {
+    call_id: 'CA450e8372475c64e61b7b2ada806d529d',
+    lead_id: 'lead_demo',
+    recipient: 'Yashwanth (Demo Lead)',
+    phone: '+91 90001 12233',
+    duration: '4:15',
+    status: 'Completed',
+    outcome: 'Customer in Jubilee Hills, Hyderabad confirmed strong purchase interest in the Škoda Kushaq 1.5 TSI DSG (Automatic). Booked a showroom test drive for Wednesday evening after office hours and requested a car loan & EMI consultation.',
+    date: new Date(Date.now() - 25 * 60000).toISOString(),
+    escalated: false,
+    recording_sid: 'REa04d68355a0da5d5345c6759b2f09b4c',
+    recording_url: '/demo/maya-demo-call.mp3',
+    ai_analysis: {
+      category: 'Hot',
+      engagability: 'Very High',
+      purchase_intent: 'High',
+      worth_pursuing: true,
+      conclusion: 'Customer in Jubilee Hills, Hyderabad confirmed strong purchase interest in the Škoda Kushaq 1.5 TSI DSG (Automatic). Booked a showroom test drive for Wednesday evening after office hours and requested a car loan & EMI consultation.',
+      key_insights: [
+        'Language Adaptability: Customer requested Hindi mid-call — Maya immediately switched from English to fluent Hindi/Hinglish.',
+        'Vehicle Configuration: Prefers Automatic transmission; pitched Kushaq 1.5 TSI DSG (currently in stock in Hyderabad).',
+        'Test Drive Confirmed: Located in Jubilee Hills, Hyderabad; scheduled test drive for next Wednesday evening (after office).',
+        'Finance & EMI Intent: Inquired about auto loan options (SBI, HDFC, ICICI, Kotak) and EMI breakdown — finance executive meeting arranged during showroom visit.',
+      ],
+      next_action: 'Send Jubilee Hills (Mahavir Škoda) showroom location via WhatsApp/SMS and prepare Kushaq 1.5 TSI DSG test drive plus personalised SBI/HDFC EMI sheet for Wednesday evening.',
+    },
+    transcript: [
+      { role: 'agent',    text: 'Namaste Yashwanth ji, main Maya bol rahi hoon Škoda Auto India se.' },
+      { role: 'customer', text: 'Namaste Maya ji, bolo.' },
+      { role: 'agent',    text: "I'm calling regarding your recent enquiry about the Škoda Kushaq. I believe you're based in Hyderabad — could you confirm that?" },
+      { role: 'customer', text: 'Uh, yes, I am based in Hyderabad, but... kya aap mujhse Hindi mein baat kar sakte hain kya? Mere ko English nahi aata hai.' },
+      { role: 'agent',    text: 'Ji zaroor! Aap Hyderabad mein hain — confirm karne ke liye shukriya. Aapki Kushaq ke liye enquiry ke baare mein baat karte hain. Kya aap automatic transmission prefer karte hain ya manual?' },
+      { role: 'customer', text: 'Uh, main toh automatic transmission prefer karunga.' },
+      { role: 'agent',    text: 'Samajh gayi — automatic transmission. Kushaq ka 1.5 TSI DSG variant bahut popular hai, aur Hyderabad mein abhi stock available hai. Kya aap ek test drive book karna chahenge apne nearest showroom mein?' },
+      { role: 'customer', text: 'Uh, kaun sa kaun sa dealerships hai Hyderabad mein?' },
+      { role: 'agent',    text: 'Hyderabad mein aapke nearest Škoda dealership ki details main abhi confirm karti hoon. Kya aap chahenge ki main aapke liye ek convenient time pe test drive arrange kar doon?' },
+      { role: 'customer', text: 'Haan, kar sakte hain, lekin main Jubilee Hills mein hoon. Mera area Jubilee Hills hai, Hyderabad mein. Uske paas koi dealership hai?' },
+      { role: 'agent',    text: 'Noted — Jubilee Hills ke aas-paas ki exact dealership details main aapko confirm karke callback ya message ke zariye share karti hoon. Kya aap weekend mein available hain test drive ke liye?' },
+      { role: 'customer', text: 'Weekend nahi ji, main toh... next week Wednesday ho sakta hai.' },
+      { role: 'agent',    text: 'Theek hai — next week Wednesday ke liye test drive schedule kar dete hain. Aapka preferred time kya hoga, morning ya evening?' },
+      { role: 'customer', text: 'Uh, evening ji, after office.' },
+      { role: 'agent',    text: 'Bilkul — next Wednesday evening, test drive booked. Aapko dealership details aur confirmation message mil jayega. Koi aur sawaal hai Kushaq ke baare mein?' },
+      { role: 'customer', text: 'Haan, nahi ji... lekin kitne saare dealerships hai Hyderabad mein Jubilee Hills ke alawa?' },
+      { role: 'agent',    text: 'Hyderabad mein Škoda ke multiple dealerships hain, lekin exact locations ki confirmed list ke liye aap hamare helpline pe call kar sakte hain — 1800-209-7272. Wahan se aapko nearest outlets ki poori details mil jayengi.' },
+      { role: 'customer', text: 'Haan, theek hai ji, woh theek hai. Lekin kuch loan wagaira milega car kharidne ke liye?' },
+      { role: 'agent',    text: 'Ji zaroor — Kushaq ke liye SBI, HDFC, ICICI aur Kotak jaise banks ke saath finance available hai. Aapka koi preferred bank hai ya EMI ke baare mein details chahiye?' },
+      { role: 'customer', text: 'Haan ji, mere ko EMI ka thoda details chahiye.' },
+      { role: 'agent',    text: 'Theek hai — exact EMI aapke loan amount, tenure aur credit profile pe depend karti hai. Aap hamare showroom mein test drive ke waqt finance executive se seedha baat kar sakte hain, woh aapke liye best plan taiyaar kar denge.' },
+      { role: 'customer', text: 'Hmm. Haan, theek hai ji.' },
+      { role: 'agent',    text: 'Acha — toh next Wednesday evening test drive confirm hai, aur finance details showroom mein mil jayengi. Koi aur sawaal?' },
+      { role: 'customer', text: 'Haan, nahi ji. Ab toh yehi hai.' },
+      { role: 'agent',    text: 'Theek hai Yashwanth ji — next Wednesday evening test drive aur finance discussion plan hai, aur dealership details aapko message mein mil jayengi. Kisi bhi sawaal ke liye 1800-209-7272 pe call kar sakte hain. Škoda Auto India se sampark karne ke liye dhanyavaad. Aapka din shubh ho!' },
+    ],
+  },
+  {
     call_id: 'CALL-DEMO1', lead_id: 'lead_003',
     recipient: 'Ananya Reddy', phone: '+91 76543 21098',
     duration: '3:24', status: 'Completed',
@@ -156,7 +210,7 @@ function ModifyLogModal({ log, onClose, onSave }) {
 // ── Call Log Detail View ──────────────────────────────────────────────────────
 
 function CallLogDetail({ log, onBack, onModify, onDelete }) {
-  const [transcriptOpen, setTranscriptOpen] = useState(false)
+  const [transcriptOpen, setTranscriptOpen] = useState(true)
   const dateStr = new Date(log.date).toLocaleString('en-IN', {
     weekday: 'short', day: '2-digit', month: 'short',
     year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -255,7 +309,7 @@ function CallLogDetail({ log, onBack, onModify, onDelete }) {
       </div>
 
       {/* Recording player */}
-      {log.recording_sid && (
+      {(log.recording_url || log.recording_sid) && (
         <div style={{
           background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
           borderRadius: 16, padding: '16px 24px', marginBottom: 16,
@@ -267,7 +321,7 @@ function CallLogDetail({ log, onBack, onModify, onDelete }) {
             controls
             style={{ width: '100%', borderRadius: 8, accentColor: 'var(--brand-primary)' }}
           >
-            <source src={`${API_BASE}/api/recordings/${log.recording_sid}`} type="audio/mpeg" />
+            <source src={log.recording_url || `${API_BASE}/api/recordings/${log.recording_sid}`} type="audio/mpeg" />
             Your browser does not support the audio element.
           </audio>
         </div>
@@ -527,7 +581,7 @@ function CallLogCard({ log, onView, onModify, onDelete }) {
               {log.ai_analysis.worth_pursuing ? '✓ Pursue' : '✗ Not Worth'}
             </span>
           )}
-          {log.recording_sid && (
+          {(log.recording_sid || log.recording_url) && (
             <span style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 6, padding: '2px 8px' }}>
               🎙 Recording
             </span>

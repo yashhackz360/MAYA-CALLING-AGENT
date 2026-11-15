@@ -8,7 +8,205 @@ from datetime import datetime, timedelta
 import uuid
 
 
+# ─── Demo Reference Call Transcript & AI Classification ───────────────────────
+# Matches /demo/maya-demo-call.mp3 (Real Twilio + ElevenLabs call to Yashwanth)
+
+DEMO_CALL_ID       = "CA450e8372475c64e61b7b2ada806d529d"
+DEMO_RECORDING_SID = "REa04d68355a0da5d5345c6759b2f09b4c"
+DEMO_RECORDING_URL = "/demo/maya-demo-call.mp3"
+
+DEMO_CALL_TRANSCRIPT = [
+    {
+        "role": "agent",
+        "text": "Namaste Yashwanth ji, main Maya bol rahi hoon Škoda Auto India se."
+    },
+    {
+        "role": "customer",
+        "text": "Namaste Maya ji, bolo."
+    },
+    {
+        "role": "agent",
+        "text": "I'm calling regarding your recent enquiry about the Škoda Kushaq. I believe you're based in Hyderabad — could you confirm that?"
+    },
+    {
+        "role": "customer",
+        "text": "Uh, yes, I am based in Hyderabad, but... kya aap mujhse Hindi mein baat kar sakte hain kya? Mere ko English nahi aata hai."
+    },
+    {
+        "role": "agent",
+        "text": "Ji zaroor! Aap Hyderabad mein hain — confirm karne ke liye shukriya. Aapki Kushaq ke liye enquiry ke baare mein baat karte hain. Kya aap automatic transmission prefer karte hain ya manual?"
+    },
+    {
+        "role": "customer",
+        "text": "Uh, main toh automatic transmission prefer karunga."
+    },
+    {
+        "role": "agent",
+        "text": "Samajh gayi — automatic transmission. Kushaq ka 1.5 TSI DSG variant bahut popular hai, aur Hyderabad mein abhi stock available hai. Kya aap ek test drive book karna chahenge apne nearest showroom mein?"
+    },
+    {
+        "role": "customer",
+        "text": "Uh, kaun sa kaun sa dealerships hai Hyderabad mein?"
+    },
+    {
+        "role": "agent",
+        "text": "Hyderabad mein aapke nearest Škoda dealership ki details main abhi confirm karti hoon. Kya aap chahenge ki main aapke liye ek convenient time pe test drive arrange kar doon?"
+    },
+    {
+        "role": "customer",
+        "text": "Haan, kar sakte hain, lekin main Jubilee Hills mein hoon. Mera area Jubilee Hills hai, Hyderabad mein. Uske paas koi dealership hai?"
+    },
+    {
+        "role": "agent",
+        "text": "Noted — Jubilee Hills ke aas-paas ki exact dealership details main aapko confirm karke callback ya message ke zariye share karti hoon. Kya aap weekend mein available hain test drive ke liye?"
+    },
+    {
+        "role": "customer",
+        "text": "Weekend nahi ji, main toh... next week Wednesday ho sakta hai."
+    },
+    {
+        "role": "agent",
+        "text": "Theek hai — next week Wednesday ke liye test drive schedule kar dete hain. Aapka preferred time kya hoga, morning ya evening?"
+    },
+    {
+        "role": "customer",
+        "text": "Uh, evening ji, after office."
+    },
+    {
+        "role": "agent",
+        "text": "Bilkul — next Wednesday evening, test drive booked. Aapko dealership details aur confirmation message mil jayega. Koi aur sawaal hai Kushaq ke baare mein?"
+    },
+    {
+        "role": "customer",
+        "text": "Haan, nahi ji... lekin kitne saare dealerships hai Hyderabad mein Jubilee Hills ke alawa?"
+    },
+    {
+        "role": "agent",
+        "text": "Hyderabad mein Škoda ke multiple dealerships hain, lekin exact locations ki confirmed list ke liye aap hamare helpline pe call kar sakte hain — 1800-209-7272. Wahan se aapko nearest outlets ki poori details mil jayengi."
+    },
+    {
+        "role": "customer",
+        "text": "Haan, theek hai ji, woh theek hai. Lekin kuch loan wagaira milega car kharidne ke liye?"
+    },
+    {
+        "role": "agent",
+        "text": "Ji zaroor — Kushaq ke liye SBI, HDFC, ICICI aur Kotak jaise banks ke saath finance available hai. Aapka koi preferred bank hai ya EMI ke baare mein details chahiye?"
+    },
+    {
+        "role": "customer",
+        "text": "Haan ji, mere ko EMI ka thoda details chahiye."
+    },
+    {
+        "role": "agent",
+        "text": "Theek hai — exact EMI aapke loan amount, tenure aur credit profile pe depend karti hai. Aap hamare showroom mein test drive ke waqt finance executive se seedha baat kar sakte hain, woh aapke liye best plan taiyaar kar denge."
+    },
+    {
+        "role": "customer",
+        "text": "Hmm. Haan, theek hai ji."
+    },
+    {
+        "role": "agent",
+        "text": "Acha — toh next Wednesday evening test drive confirm hai, aur finance details showroom mein mil jayengi. Koi aur sawaal?"
+    },
+    {
+        "role": "customer",
+        "text": "Haan, nahi ji. Ab toh yehi hai."
+    },
+    {
+        "role": "agent",
+        "text": "Theek hai Yashwanth ji — next Wednesday evening test drive aur finance discussion plan hai, aur dealership details aapko message mein mil jayengi. Kisi bhi sawaal ke liye 1800-209-7272 pe call kar sakte hain. Škoda Auto India se sampark karne ke liye dhanyavaad. Aapka din shubh ho!"
+    },
+]
+
+DEMO_AI_ANALYSIS = {
+    "category": "Hot",
+    "engagability": "Very High",
+    "purchase_intent": "High",
+    "worth_pursuing": True,
+    "conclusion": (
+        "Customer in Jubilee Hills, Hyderabad confirmed strong purchase interest in the Škoda Kushaq 1.5 TSI DSG (Automatic). "
+        "Booked a showroom test drive for Wednesday evening after office hours and requested a car loan & EMI consultation."
+    ),
+    "key_insights": [
+        "Language Adaptability: Customer requested Hindi mid-call — Maya immediately switched from English to fluent Hindi/Hinglish.",
+        "Vehicle Configuration: Prefers Automatic transmission; pitched Kushaq 1.5 TSI DSG (currently in stock in Hyderabad).",
+        "Test Drive Confirmed: Located in Jubilee Hills, Hyderabad; scheduled test drive for next Wednesday evening (after office).",
+        "Finance & EMI Intent: Inquired about auto loan options (SBI, HDFC, ICICI, Kotak) and EMI breakdown — finance executive meeting arranged during showroom visit."
+    ],
+    "next_action": (
+        "Send Jubilee Hills (Mahavir Škoda) showroom location via WhatsApp/SMS and prepare Kushaq 1.5 TSI DSG test drive "
+        "plus personalised SBI/HDFC EMI sheet for Wednesday evening."
+    ),
+}
+
+_demo_call_time = (datetime.now() - timedelta(minutes=25)).isoformat()
+
+
 SAMPLE_LEADS = [
+
+    # ══════════════════════════════════════════════════════════════════════
+    # CLIENT REFERENCE DEMO LEAD — Pre-loaded with Voice Recording,
+    # Full 25-Turn Transcript & Buddhi AI Lead Classification
+    # ══════════════════════════════════════════════════════════════════════
+
+    {
+        "lead_id": "lead_demo",
+        "name": "Yashwanth (Demo Lead)",
+        "phone": "+91 90001 12233",
+        "email": "yashwanth.demo@mantaray.ai",
+        "source": "Website Enquiry (Demo Reference)",
+        "preferred_language": "hindi",
+        "status": "Qualified",
+        "tag": "Hot",
+        "is_demo_reference": True,
+        "created_at": (datetime.now() - timedelta(minutes=30)).isoformat(),
+        "address": "Jubilee Hills, Hyderabad",
+        "next_action": DEMO_AI_ANALYSIS["next_action"],
+        "follow_up_date": (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d"),
+        "preferences": {
+            "location": "Hyderabad",
+            "vehicle_model": "Škoda Kushaq",
+            "variant": "Style 1.5 TSI DSG",
+            "budget": "₹16–19 Lakhs",
+            "transmission": "Automatic (DSG)",
+            "fuel_type": "Petrol (1.5 TSI)",
+            "finance": "Required (SBI / HDFC / ICICI / Kotak EMI)",
+            "test_drive": "Scheduled — Wednesday Evening (After Office)",
+            "enquiry_type": "New Purchase + Test Drive",
+            "purpose": "Daily office commute + City driving",
+            "notes": (
+                "Client Reference Demo Lead — backed by live recorded AI qualification call (/demo/maya-demo-call.mp3). "
+                "Customer asked to switch from English to Hindi mid-call. Confirmed Automatic transmission preference "
+                "(Kushaq 1.5 TSI DSG), asked about dealerships near Jubilee Hills, Hyderabad, scheduled a Wednesday "
+                "evening test drive after office, and requested loan/EMI details."
+            ),
+        },
+        "recording_url": DEMO_RECORDING_URL,
+        "recording_sid": DEMO_RECORDING_SID,
+        "transcript": DEMO_CALL_TRANSCRIPT,
+        "ai_analysis": DEMO_AI_ANALYSIS,
+        "call_history": [
+            {
+                "call_id": DEMO_CALL_ID,
+                "timestamp": _demo_call_time,
+                "date": _demo_call_time,
+                "duration": "4:15",
+                "status": "Completed",
+                "outcome": DEMO_AI_ANALYSIS["conclusion"],
+                "recording_sid": DEMO_RECORDING_SID,
+                "recording_url": DEMO_RECORDING_URL,
+                "transcript": DEMO_CALL_TRANSCRIPT,
+                "ai_analysis": DEMO_AI_ANALYSIS,
+            }
+        ],
+        "engagement": "Very High",
+        "engagability": "Very High",
+        "intent": "High",
+        "urgency": "High",
+        "fit": "Excellent",
+        "assigned_agent": "Maya",
+        "campaign": "Kushaq Style Summer Drive 2024"
+    },
 
     # ══════════════════════════════════════════════════════════════════════
     # PRIMARY DEMO LEADS — language-specific, used for live demo calls
@@ -398,7 +596,25 @@ def add_call_to_lead(lead_id: str, call_record: dict) -> None:
         lead.setdefault("call_history", []).append(call_record)
 
 
-_call_logs: list[dict] = []
+_call_logs: list[dict] = [
+    {
+        "call_id":       DEMO_CALL_ID,
+        "lead_id":       "lead_demo",
+        "recipient":     "Yashwanth (Demo Lead)",
+        "lead_name":     "Yashwanth (Demo Lead)",
+        "phone":         "+91 90001 12233",
+        "duration":      "4:15",
+        "status":        "Completed",
+        "outcome":       DEMO_AI_ANALYSIS["conclusion"],
+        "date":          _demo_call_time,
+        "timestamp":     _demo_call_time,
+        "escalated":     False,
+        "recording_sid": DEMO_RECORDING_SID,
+        "recording_url": DEMO_RECORDING_URL,
+        "transcript":    DEMO_CALL_TRANSCRIPT,
+        "ai_analysis":   DEMO_AI_ANALYSIS,
+    }
+]
 
 def add_call_log(log: dict) -> None:
     _call_logs.append(log)
@@ -416,7 +632,15 @@ def get_call_logs() -> list[dict]:
     runtime_logs = list(_call_logs)
     for lead in _leads_db:
         for call in lead.get("call_history", []):
-            entry = {**call, "lead_name": lead["name"], "lead_id": lead["lead_id"]}
+            entry = {
+                "recipient": lead["name"],
+                "phone": lead.get("phone", ""),
+                "date": call.get("timestamp", ""),
+                "escalated": False,
+                **call,
+                "lead_name": lead["name"],
+                "lead_id": lead["lead_id"],
+            }
             if not any(l.get("call_id") == entry.get("call_id") for l in runtime_logs):
                 runtime_logs.append(entry)
     return sorted(runtime_logs, key=lambda x: x.get("timestamp", ""), reverse=True)

@@ -292,9 +292,22 @@ def call_logs():
     return {"logs": get_call_logs()}
 
 
+_DEMO_RECORDING_SIDS = {"REa04d68355a0da5d5345c6759b2f09b4c", "maya-demo-call"}
+_DEMO_MP3_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend", "public", "demo", "maya-demo-call.mp3")
+)
+
+
 @app.get("/api/recordings/{recording_sid}")
 async def proxy_recording(recording_sid: str):
     """Proxy a Twilio call recording through the backend (handles Basic Auth)."""
+    if recording_sid in _DEMO_RECORDING_SIDS and os.path.exists(_DEMO_MP3_PATH):
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            _DEMO_MP3_PATH,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=maya-demo-call.mp3"},
+        )
     if not TWILIO_SID or not TWILIO_TOKEN:
         raise HTTPException(status_code=503, detail="Twilio not configured")
     import httpx
